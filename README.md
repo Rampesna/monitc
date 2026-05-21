@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Rampesna/monitc/main/build/icon.png" alt="monitc logo" width="96" height="96" />
-
 # monitc
 
 **A modern, cross-platform server monitoring & DevOps management desktop application**
