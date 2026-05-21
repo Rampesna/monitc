@@ -1,0 +1,8 @@
+node_modules/
+out/
+dist/
+.DS_Store
+*.local
+*.enc
+monitc-license.key
+monitc-license.confirmed
