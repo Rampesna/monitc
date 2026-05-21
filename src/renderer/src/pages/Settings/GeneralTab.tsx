@@ -4,6 +4,7 @@ import { Sliders, Shield, Trash2, Eye, EyeOff, Copy } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { useApp } from '../../context/AppContext'
+import { LANGUAGES, applyLanguage } from '../../i18n'
 import type { AppPreferences } from '../../lib/types'
 
 export function GeneralTab(): React.ReactElement {
@@ -20,6 +21,7 @@ export function GeneralTab(): React.ReactElement {
     try {
       await window.monitcAPI.preferences.save(prefs)
       dispatch({ type: 'SET_PREFERENCES', prefs })
+      applyLanguage(prefs.language ?? 'en')
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } finally { setSaving(false) }
@@ -74,6 +76,23 @@ export function GeneralTab(): React.ReactElement {
               className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${prefs.theme === themeOpt ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300' : 'bg-[#0d0d14] border-[#1e1e2e] text-slate-400 hover:border-[#2d2d45]'}`}
             >
               {themeOpt === 'dark' ? t('generalTab.themeDark') : themeOpt === 'light' ? t('generalTab.themeLight') : t('generalTab.themeSystem')}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Language */}
+      <Card className="space-y-4">
+        <h3 className="text-sm font-semibold text-slate-200">{t('generalTab.language')}</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {LANGUAGES.map((lang) => (
+            <button
+              key={lang.code}
+              onClick={() => setPrefs((p) => ({ ...p, language: lang.code }))}
+              className={`px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors text-left flex items-center justify-between ${(prefs.language ?? 'en') === lang.code ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300' : 'bg-[#0d0d14] border-[#1e1e2e] text-slate-400 hover:border-[#2d2d45] hover:text-slate-200'}`}
+            >
+              <span>{lang.nativeLabel}</span>
+              <span className="text-xs text-slate-500">{lang.label}</span>
             </button>
           ))}
         </div>

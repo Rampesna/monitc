@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ConnectionState } from '../../lib/types'
 
 interface StatusDotProps {
@@ -15,13 +16,6 @@ const colorMap: Record<ConnectionState, string> = {
   error: 'bg-red-500'
 }
 
-const labelMap: Record<ConnectionState, string> = {
-  connected: 'Bağlı',
-  connecting: 'Bağlanıyor...',
-  disconnected: 'Bağlı Değil',
-  error: 'Hata'
-}
-
 const sizeMap = { sm: 'w-2 h-2', md: 'w-2.5 h-2.5', lg: 'w-3 h-3' }
 const textMap: Record<ConnectionState, string> = {
   connected: 'text-green-400',
@@ -31,6 +25,15 @@ const textMap: Record<ConnectionState, string> = {
 }
 
 export function StatusDot({ status, size = 'md', showLabel = false, className = '' }: StatusDotProps): React.ReactElement {
+  const { t } = useTranslation()
+
+  const labelMap: Record<ConnectionState, string> = {
+    connected: t('connection.connected'),
+    connecting: t('connection.connecting'),
+    disconnected: t('connection.disconnected'),
+    error: t('connection.error')
+  }
+
   return (
     <span className={`inline-flex items-center gap-1.5 ${className}`}>
       <span className={`rounded-full ${sizeMap[size]} ${colorMap[status]} flex-shrink-0`} />
