@@ -59,17 +59,28 @@
 
 ## 📸 Screenshots
 
-| Dashboard | Docker |
-|-----------|--------|
-| Server overview with live metrics | Container list with K8s badge |
-
-| Kubernetes | CI/CD |
-|------------|-------|
-| Pod / Service / Deployment monitor | GitHub & GitLab workflow trigger |
-
-| Deploy | K8s Management |
-|--------|----------------|
-| One-click Git Pull + rollout | Namespace, Secret, SA management |
+<table>
+  <tr>
+    <td width="50%">
+      <img src=".github/assets/dashboard.png" alt="Server Dashboard" />
+      <p align="center"><sub>Server Dashboard — live CPU, RAM, Disk & Network charts</sub></p>
+    </td>
+    <td width="50%">
+      <img src=".github/assets/k8s.png" alt="Kubernetes Monitor" />
+      <p align="center"><sub>Kubernetes — Pod, Service & Deployment monitoring</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src=".github/assets/cicd.png" alt="CI/CD" />
+      <p align="center"><sub>CI/CD — GitHub Actions workflow triggering & run history</sub></p>
+    </td>
+    <td width="50%">
+      <img src=".github/assets/k3s.png" alt="K8s Management" />
+      <p align="center"><sub>K8s Management — Namespace, Secret & Service Account panel</sub></p>
+    </td>
+  </tr>
+</table>
 
 ---
 
