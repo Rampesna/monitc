@@ -23,15 +23,7 @@ export const COMMANDS = {
     remove: (id: string): string => `docker rm -f ${id}`
   },
   kubernetes: {
-    check: `
-      if command -v kubectl >/dev/null 2>&1; then
-        echo "kubectl"
-      elif command -v k3s >/dev/null 2>&1; then
-        echo "k3s"
-      else
-        exit 1
-      fi
-    `.trim(),
+    check: `command -v kubectl >/dev/null 2>&1 && echo "kubectl" || { command -v k3s >/dev/null 2>&1 && echo "k3s" || exit 1; }`,
     nodes: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get nodes -o json 2>/dev/null`,
     pods: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get pods --all-namespaces -o json 2>/dev/null`,
     services: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get services --all-namespaces -o json 2>/dev/null`,

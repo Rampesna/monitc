@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Box, AlertTriangle } from 'lucide-react'
+import { Box, AlertTriangle, ScrollText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
@@ -74,7 +74,7 @@ export function KubernetesPage(): React.ReactElement {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[#1e1e2e]">
-                  {[t('common.namespace'), t('common.name'), t('common.status'), t('kubernetes.ready'), t('kubernetes.restarts'), t('kubernetes.age'), 'Node', 'IP'].map((h) => (
+                  {[t('common.namespace'), t('common.name'), t('common.status'), t('kubernetes.ready'), t('kubernetes.restarts'), t('kubernetes.age'), 'Node', 'IP', ''].map((h) => (
                     <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -98,6 +98,15 @@ export function KubernetesPage(): React.ReactElement {
                     <td className="py-2 px-3 text-slate-500">{pod.age}</td>
                     <td className="py-2 px-3 text-slate-500">{pod.node}</td>
                     <td className="py-2 px-3 text-slate-600 font-mono">{pod.ip}</td>
+                    <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => navigate(`/logs?type=k8s&serverId=${sid}&namespace=${pod.namespace}&pod=${pod.name}&label=${encodeURIComponent(pod.name)}`)}
+                        title={t('docker.viewLogs')}
+                        className="p-1 rounded hover:bg-blue-500/20 text-slate-500 hover:text-blue-400 transition-colors"
+                      >
+                        <ScrollText size={12} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

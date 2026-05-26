@@ -54,7 +54,8 @@ export function getMetricLabel(metric: string): string {
     k8s_node_not_ready: 'Node Hazır Değil',
     k8s_deployment_unavailable: 'Deployment Kullanılamaz',
     docker_container_exited: 'Container Durdu',
-    docker_container_restarting: 'Container Yeniden Başlıyor'
+    docker_container_restarting: 'Container Yeniden Başlıyor',
+    connection_lost: 'Sunucu Erişilemez (SSH)'
   }
   return labels[metric] || metric
 }

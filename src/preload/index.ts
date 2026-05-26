@@ -165,6 +165,33 @@ const monitcAPI = {
     setVariable: (projectId: string | number, key: string, value: string): Promise<unknown> =>
       ipcRenderer.invoke('gitlab:variable:set', projectId, key, value),
     branches: (projectId: string | number): Promise<unknown> => ipcRenderer.invoke('gitlab:branches', projectId)
+  },
+  terminal: {
+    open: (serverId: string, cols: number, rows: number): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+      ipcRenderer.invoke('terminal:open', serverId, cols, rows),
+    write: (sessionId: string, data: string): void => ipcRenderer.send('terminal:write', sessionId, data),
+    resize: (sessionId: string, cols: number, rows: number): void => {
+      ipcRenderer.send('terminal:resize', sessionId, cols, rows)
+    },
+    close: (sessionId: string): Promise<boolean> => ipcRenderer.invoke('terminal:close', sessionId),
+    onData: (sessionId: string, cb: (data: string) => void): (() => void) => {
+      const channel = `terminal:data:${sessionId}`
+      const handler = (_: unknown, data: string): void => cb(data)
+      ipcRenderer.on(channel, handler)
+      return () => ipcRenderer.removeListener(channel, handler)
+    },
+    onClose: (sessionId: string, cb: () => void): (() => void) => {
+      const channel = `terminal:close:${sessionId}`
+      const handler = (): void => cb()
+      ipcRenderer.on(channel, handler)
+      return () => ipcRenderer.removeListener(channel, handler)
+    },
+    onError: (sessionId: string, cb: (error: string) => void): (() => void) => {
+      const channel = `terminal:error:${sessionId}`
+      const handler = (_: unknown, error: string): void => cb(error)
+      ipcRenderer.on(channel, handler)
+      return () => ipcRenderer.removeListener(channel, handler)
+    }
   }
 }
 

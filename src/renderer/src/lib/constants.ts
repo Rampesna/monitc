@@ -11,8 +11,15 @@ export const METRIC_TYPES = [
   { value: 'k8s_node_not_ready', label: 'K8s Node NotReady' },
   { value: 'k8s_deployment_unavailable', label: 'K8s Deployment Kullanılamaz' },
   { value: 'docker_container_exited', label: 'Docker Container Durdu' },
-  { value: 'docker_container_restarting', label: 'Docker Container Yeniden Başlıyor' }
+  { value: 'docker_container_restarting', label: 'Docker Container Yeniden Başlıyor' },
+  { value: 'connection_lost', label: 'Sunucu Erişilemez (SSH)' }
 ]
+
+export const EVENT_METRICS = ['connection_lost'] as const
+
+export function isEventMetric(metric: string): boolean {
+  return (EVENT_METRICS as readonly string[]).includes(metric)
+}
 
 export const OPERATOR_LABELS = {
   gt: 'büyüktür (>)',
@@ -73,6 +80,15 @@ export const ALERT_TEMPLATES = [
     operator: 'gt',
     threshold: 0,
     durationSeconds: 10,
+    cooldownMinutes: 15
+  },
+  {
+    id: 'server-unreachable',
+    name: 'Sunucu Erişilemez',
+    metric: 'connection_lost',
+    operator: 'gt',
+    threshold: 0,
+    durationSeconds: 30,
     cooldownMinutes: 15
   }
 ]

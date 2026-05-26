@@ -87,6 +87,13 @@ export default function K8sManagePage() {
   }, [sid, selectedNs])
 
   useEffect(() => {
+    if (!sid) return
+    window.monitcAPI.k8sManage.listNamespaces(sid)
+      .then((data) => setNamespaces(data as K8sNamespace[]))
+      .catch(console.error)
+  }, [sid])
+
+  useEffect(() => {
     if (activeTab === 'namespaces') loadNamespaces()
     else if (activeTab === 'secrets') loadSecrets()
     else if (activeTab === 'serviceaccounts') loadSAs()
@@ -410,12 +417,6 @@ export default function K8sManagePage() {
           </div>
         )}
       </div>
-
-      {activeTab !== 'namespaces' && namespaces.length === 0 && (
-        <div className="hidden">
-          {(() => { loadNamespaces(); return null })()}
-        </div>
-      )}
     </div>
   )
 }

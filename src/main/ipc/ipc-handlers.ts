@@ -4,13 +4,14 @@ import { systemMonitor } from '../monitors/system-monitor'
 import { dockerMonitor } from '../monitors/docker-monitor'
 import { kubernetesMonitor } from '../monitors/kubernetes-monitor'
 import { logStreamer } from '../monitors/log-streamer'
+import { sshTerminalManager } from '../ssh/ssh-terminal-manager'
 import { alertEngine } from '../alerts/alert-engine'
 import { loadData, saveData, resetData } from '../store/secure-store'
 import { markLicenseConfirmed } from '../security/license-key'
 import { testSmtp } from '../alerts/channels/smtp-channel'
 import { testWhatsApp } from '../alerts/channels/whatsapp-channel'
 import { testTelegram } from '../alerts/channels/telegram-channel'
-import type { AppData, Server } from '../store/types'
+import type { AppData, Server, ConnectionStatus } from '../store/types'
 import { app } from 'electron'
 import { COMMANDS } from '../ssh/ssh-commands'
 import crypto from 'crypto'
@@ -28,6 +29,13 @@ function send(channel: string, data: unknown): void {
   getWin()?.webContents.send(channel, data)
 }
 
+function startMonitors(serverId: string): void {
+  const { pollIntervals } = appData.preferences
+  systemMonitor.start(serverId, pollIntervals.system)
+  dockerMonitor.start(serverId, pollIntervals.docker)
+  kubernetesMonitor.start(serverId, pollIntervals.kubernetes)
+}
+
 export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void {
   licenseKey = lk
   machineId = mid
@@ -39,7 +47,13 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
     (data) => { appData = data; saveData(appData, licenseKey, machineId) }
   )
 
-  sshManager.on('status', (status) => send('connection:status', status))
+  sshManager.on('status', (status: ConnectionStatus) => {
+    send('connection:status', status)
+    alertEngine.evaluateConnectionStatus(status).catch(console.error)
+    if (status.status === 'connected' && appData.servers.some((s) => s.id === status.serverId)) {
+      startMonitors(status.serverId)
+    }
+  })
 
   systemMonitor.on('metrics', (metrics) => {
     send('metrics:update', metrics)
@@ -54,6 +68,33 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
   logStreamer.on('error', ({ streamId, error }) => send(`log:error:${streamId}`, error))
 
   alertEngine.on('alert', (alert) => send('alert:triggered', alert))
+
+  sshTerminalManager.on('data', ({ sessionId, data }) => send(`terminal:data:${sessionId}`, data))
+  sshTerminalManager.on('close', ({ sessionId }) => send(`terminal:close:${sessionId}`, null))
+
+  ipcMain.handle('terminal:open', async (_, serverId: string, cols: number, rows: number) => {
+    const server = appData.servers.find((s) => s.id === serverId)
+    if (!server) return { success: false, error: 'Server not found' }
+    try {
+      const sessionId = await sshTerminalManager.open(server, cols, rows)
+      return { success: true, sessionId }
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
+  ipcMain.on('terminal:write', (_, sessionId: string, data: string) => {
+    sshTerminalManager.write(sessionId, data)
+  })
+
+  ipcMain.on('terminal:resize', (_, sessionId: string, cols: number, rows: number) => {
+    sshTerminalManager.resize(sessionId, cols, rows)
+  })
+
+  ipcMain.handle('terminal:close', async (_, sessionId: string) => {
+    sshTerminalManager.close(sessionId)
+    return true
+  })
 
   ipcMain.handle('servers:list', () => appData.servers)
 
@@ -71,11 +112,13 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
   })
 
   ipcMain.handle('servers:remove', async (_, serverId: string) => {
+    alertEngine.clearConnectionAlertsForServer(serverId)
     sshManager.disconnect(serverId)
     systemMonitor.stop(serverId)
     dockerMonitor.stop(serverId)
     kubernetesMonitor.stop(serverId)
     logStreamer.stopAllForServer(serverId)
+    sshTerminalManager.closeAllForServer(serverId)
     appData.servers = appData.servers.filter((s) => s.id !== serverId)
     saveData(appData, licenseKey, machineId)
     return true
@@ -89,11 +132,10 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
     const server = appData.servers.find((s) => s.id === serverId)
     if (!server) return { success: false, error: 'Server not found' }
     try {
+      const wasConnected = sshManager.getStatus(serverId) === 'connected'
       await sshManager.connect(server)
-      const { pollIntervals } = appData.preferences
-      systemMonitor.start(serverId, pollIntervals.system)
-      dockerMonitor.start(serverId, pollIntervals.docker)
-      kubernetesMonitor.start(serverId, pollIntervals.kubernetes)
+      // connected event starts monitors on fresh connect; skip duplicate poll burst
+      if (wasConnected) startMonitors(serverId)
       return { success: true }
     } catch (err) {
       return { success: false, error: (err as Error).message }

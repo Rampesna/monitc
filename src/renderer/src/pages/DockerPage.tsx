@@ -131,7 +131,9 @@ export function DockerPage(): React.ReactElement {
                             className="p-1 rounded hover:bg-amber-500/20 text-amber-400">
                             <RotateCcw size={12} />
                           </button>
-                          <button onClick={() => navigate(`/logs?streamId=docker:${sid}:${c.id}&serverId=${sid}&containerId=${c.id}`)} title={t('docker.viewLogs')}
+                          <button
+                            onClick={() => navigate(`/logs?type=docker&serverId=${sid}&containerId=${c.id}&label=${encodeURIComponent(c.names.replace(/^\//, ''))}`)}
+                            title={t('docker.viewLogs')}
                             className="p-1 rounded hover:bg-blue-500/20 text-blue-400">
                             <ScrollText size={12} />
                           </button>

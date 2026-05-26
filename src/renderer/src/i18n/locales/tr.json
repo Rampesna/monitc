@@ -46,6 +46,7 @@
     "version": "Sürüm"
   },
   "nav": {
+    "servers": "Sunucular",
     "dashboard": "Dashboard",
     "docker": "Docker",
     "kubernetes": "Kubernetes",
@@ -54,7 +55,11 @@
     "deploy": "Deploy",
     "logs": "Loglar",
     "alerts": "Alarmlar",
-    "settings": "Ayarlar"
+    "settings": "Ayarlar",
+    "terminal": "Terminal"
+  },
+  "servers": {
+    "active": "Aktif"
   },
   "header": {
     "selectServer": "Sunucu Seç..."
@@ -290,7 +295,11 @@
     "triggerChannel": "Alarm kanalı",
     "smtp": "E-posta (SMTP)",
     "whatsapp": "WhatsApp",
-    "telegram": "Telegram"
+    "telegram": "Telegram",
+    "connectionLostHint": "SSH bağlantısı kesildiğinde veya sunucuya erişilemediğinde alarm tetiklenir (sunucu çökmesi, ağ kesintisi, firewall vb.).",
+    "connectionLostDelay": "Bekleme süresi (sn)",
+    "connectionLostCondition": "SSH kesilince, {{seconds}}sn sonra",
+    "connectionLostTriggered": "Sunucuya SSH ile erişilemiyor"
   },
   "settings": {
     "title": "Ayarlar",
@@ -387,5 +396,14 @@
     "disconnected": "Bağlı Değil",
     "connecting": "Bağlanıyor",
     "error": "Bağlantı Hatası"
+  },
+  "terminal": {
+    "title": "SSH Terminal",
+    "subtitle": "SSH üzerinden tam interaktif shell",
+    "newSession": "+ Yeni Oturum",
+    "reconnect": "Yeniden Bağlan",
+    "noServers": "SSH terminali için Ayarlar'dan sunucu ekleyin.",
+    "empty": "Açık terminal oturumu yok.",
+    "connectFirst": "İlk sunucuya bağlan"
   }
 }

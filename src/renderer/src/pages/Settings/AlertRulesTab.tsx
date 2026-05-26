@@ -5,7 +5,7 @@ import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { Badge } from '../../components/common/Badge'
 import { useApp } from '../../context/AppContext'
-import { ALERT_TEMPLATES, METRIC_TYPES } from '../../lib/constants'
+import { ALERT_TEMPLATES, METRIC_TYPES, isEventMetric } from '../../lib/constants'
 import { useNavigate } from 'react-router-dom'
 
 export function AlertRulesTab(): React.ReactElement {
@@ -56,7 +56,11 @@ export function AlertRulesTab(): React.ReactElement {
               </div>
               <div className="text-xs text-slate-500 space-y-1">
                 <div>Metric: <span className="text-slate-300">{metric?.label}</span></div>
-                <div>Condition: <span className="text-slate-300">{tpl.operator === 'gt' ? '>' : tpl.operator === 'lt' ? '<' : '='} {tpl.threshold}</span></div>
+                {isEventMetric(tpl.metric) ? (
+                  <div>Condition: <span className="text-slate-300">SSH kesilince, {tpl.durationSeconds}s sonra</span></div>
+                ) : (
+                  <div>Condition: <span className="text-slate-300">{tpl.operator === 'gt' ? '>' : tpl.operator === 'lt' ? '<' : '='} {tpl.threshold}</span></div>
+                )}
                 <div>Duration: <span className="text-slate-300">{tpl.durationSeconds}s</span> · Cooldown: <span className="text-slate-300">{tpl.cooldownMinutes}m</span></div>
               </div>
               <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => applyTemplate(tpl)}>

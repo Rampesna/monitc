@@ -98,8 +98,18 @@ export class DockerMonitor extends EventEmitter {
       }))
 
       this.emit('data', { serverId, available: true, containers, images, networks, volumes })
-    } catch {
-      // emit nothing
+    } catch (err) {
+      const msg = (err as Error)?.message ?? ''
+      if (
+        msg.includes('not connected') ||
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('ETIMEDOUT') ||
+        msg.includes('Connection lost') ||
+        msg.includes('socket hang up') ||
+        msg.includes('read ECONNRESET')
+      ) return
+      console.error(`[docker-monitor] poll error for ${serverId}:`, msg)
+      this.emit('data', { serverId, available: false, containers: [], images: [], networks: [], volumes: [] })
     }
   }
 }

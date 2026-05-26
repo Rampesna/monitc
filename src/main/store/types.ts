@@ -50,6 +50,7 @@ export type MetricType =
   | 'k8s_deployment_unavailable'
   | 'docker_container_exited'
   | 'docker_container_restarting'
+  | 'connection_lost'
 
 export interface AlertRule {
   id: string

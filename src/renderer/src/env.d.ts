@@ -117,6 +117,15 @@ interface MonitcAPI {
     setVariable: (projectId: string | number, key: string, value: string) => Promise<unknown>
     branches: (projectId: string | number) => Promise<unknown>
   }
+  terminal: {
+    open: (serverId: string, cols: number, rows: number) => Promise<{ success: boolean; sessionId?: string; error?: string }>
+    write: (sessionId: string, data: string) => void
+    resize: (sessionId: string, cols: number, rows: number) => void
+    close: (sessionId: string) => Promise<boolean>
+    onData: (sessionId: string, cb: (data: string) => void) => () => void
+    onClose: (sessionId: string, cb: () => void) => () => void
+    onError: (sessionId: string, cb: (error: string) => void) => () => void
+  }
 }
 
 interface Window {

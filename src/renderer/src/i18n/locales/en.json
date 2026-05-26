@@ -46,15 +46,20 @@
     "version": "Version"
   },
   "nav": {
+    "servers": "Servers",
     "dashboard": "Dashboard",
     "docker": "Docker",
     "kubernetes": "Kubernetes",
     "k8sManage": "K8s Manage",
     "cicd": "CI/CD",
     "deploy": "Deploy",
+    "terminal": "Terminal",
     "logs": "Logs",
     "alerts": "Alerts",
     "settings": "Settings"
+  },
+  "servers": {
+    "active": "Active"
   },
   "header": {
     "selectServer": "Select Server..."
@@ -290,7 +295,11 @@
     "triggerChannel": "Alert channel",
     "smtp": "Email (SMTP)",
     "whatsapp": "WhatsApp",
-    "telegram": "Telegram"
+    "telegram": "Telegram",
+    "connectionLostHint": "Triggers when SSH connection is lost or the server becomes unreachable (crash, network outage, firewall, etc.).",
+    "connectionLostDelay": "Grace period (sec)",
+    "connectionLostCondition": "SSH lost, after {{seconds}}s",
+    "connectionLostTriggered": "Server unreachable via SSH"
   },
   "settings": {
     "title": "Settings",
@@ -381,6 +390,15 @@
     "title": "Quick Alert Templates",
     "subtitle": "Click a template to quickly create an alert rule.",
     "add": "Add Rule"
+  },
+  "terminal": {
+    "title": "SSH Terminal",
+    "subtitle": "Full interactive shell over SSH",
+    "newSession": "+ New Session",
+    "reconnect": "Reconnect",
+    "noServers": "Add a server in Settings to open an SSH terminal.",
+    "empty": "No terminal sessions open.",
+    "connectFirst": "Connect to first server"
   },
   "connection": {
     "connected": "Connected",

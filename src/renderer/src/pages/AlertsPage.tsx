@@ -7,7 +7,7 @@ import { Badge } from '../components/common/Badge'
 import { Modal } from '../components/common/Modal'
 import { useApp } from '../context/AppContext'
 import { getMetricLabel, formatDate } from '../lib/format'
-import { METRIC_TYPES, OPERATOR_LABELS } from '../lib/constants'
+import { METRIC_TYPES, OPERATOR_LABELS, isEventMetric } from '../lib/constants'
 import type { AlertRule, MetricType } from '../lib/types'
 
 const EMPTY_RULE: Omit<AlertRule, 'id' | 'lastTriggeredAt' | 'consecutiveBreaches'> = {
@@ -112,7 +112,11 @@ export function AlertsPage(): React.ReactElement {
                 <div className="flex items-center gap-2">
                   <AlertTriangle size={12} className="text-red-400" />
                   <span className="text-slate-200 font-medium">{a.ruleName}</span>
-                  <span className="text-slate-500">{getMetricLabel(a.metric)}: {a.value.toFixed(1)} &gt; {a.threshold}</span>
+                  <span className="text-slate-500">
+                    {isEventMetric(a.metric)
+                      ? t('alerts.connectionLostTriggered')
+                      : `${getMetricLabel(a.metric)}: ${a.value.toFixed(1)} > ${a.threshold}`}
+                  </span>
                 </div>
                 <span className="text-slate-500">{formatDate(a.timestamp)}</span>
               </div>
@@ -146,7 +150,11 @@ export function AlertsPage(): React.ReactElement {
                       <td className="py-2 px-4 font-medium text-slate-200">{rule.name}</td>
                       <td className="py-2 px-4 text-slate-400">{server?.name ?? '-'}</td>
                       <td className="py-2 px-4 text-slate-300">{getMetricLabel(rule.metric)}</td>
-                      <td className="py-2 px-4 text-slate-400">{OPERATOR_LABELS[rule.operator]} {rule.threshold}</td>
+                      <td className="py-2 px-4 text-slate-400">
+                        {isEventMetric(rule.metric)
+                          ? t('alerts.connectionLostCondition', { seconds: rule.durationSeconds })
+                          : `${OPERATOR_LABELS[rule.operator]} ${rule.threshold}`}
+                      </td>
                       <td className="py-2 px-4">
                         <div className="flex gap-1">
                           {rule.channels.map((ch) => <Badge key={ch} variant="info">{ch}</Badge>)}
@@ -210,11 +218,37 @@ export function AlertsPage(): React.ReactElement {
           </div>
           <div>
             <label className="text-xs text-slate-400 mb-1 block">{t('alerts.metric')}</label>
-            <select value={form.metric} onChange={(e) => setForm((f) => ({ ...f, metric: e.target.value as MetricType }))}
+            <select
+              value={form.metric}
+              onChange={(e) => {
+                const metric = e.target.value as MetricType
+                setForm((f) => ({
+                  ...f,
+                  metric,
+                  ...(isEventMetric(metric) ? { operator: 'gt' as const, threshold: 0, durationSeconds: 30 } : {})
+                }))
+              }}
               className="w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
               {METRIC_TYPES.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
             </select>
+            {isEventMetric(form.metric) && (
+              <p className="text-xs text-slate-500 mt-1">{t('alerts.connectionLostHint')}</p>
+            )}
           </div>
+          {isEventMetric(form.metric) ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{t('alerts.connectionLostDelay')}</label>
+                <input type="number" value={form.durationSeconds} onChange={(e) => setForm((f) => ({ ...f, durationSeconds: Number(e.target.value) }))}
+                  className="w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">{t('alerts.cooldown')}</label>
+                <input type="number" value={form.cooldownMinutes} onChange={(e) => setForm((f) => ({ ...f, cooldownMinutes: Number(e.target.value) }))}
+                  className="w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-slate-400 mb-1 block">{t('alerts.operator')}</label>
@@ -236,6 +270,7 @@ export function AlertsPage(): React.ReactElement {
                 className="w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
             </div>
           </div>
+          )}
           <div>
             <label className="text-xs text-slate-400 mb-1 block">{t('alerts.channels')}</label>
             <div className="flex gap-3">
@@ -254,11 +289,13 @@ export function AlertsPage(): React.ReactElement {
               placeholder="user@example.com, +905551234567"
               className="w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
           </div>
+          {!isEventMetric(form.metric) && (
           <div>
             <label className="text-xs text-slate-400 mb-1 block">{t('alerts.cooldown')}</label>
             <input type="number" value={form.cooldownMinutes} onChange={(e) => setForm((f) => ({ ...f, cooldownMinutes: Number(e.target.value) }))}
               className="w-32 bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500" />
           </div>
+          )}
         </div>
       </Modal>
     </div>

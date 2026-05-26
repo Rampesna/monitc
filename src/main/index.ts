@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initializeLicense } from './security/license-key'
@@ -10,11 +10,29 @@ import { systemMonitor } from './monitors/system-monitor'
 import { dockerMonitor } from './monitors/docker-monitor'
 import { kubernetesMonitor } from './monitors/kubernetes-monitor'
 import { logStreamer } from './monitors/log-streamer'
+import { sshTerminalManager } from './ssh/ssh-terminal-manager'
 
 let mainWindow: BrowserWindow | null = null
 let licenseIsNew = false
 
+function getAppIcon(): Electron.NativeImage | undefined {
+  const resourcesPath = is.dev
+    ? join(__dirname, '../../resources')
+    : process.resourcesPath
+
+  if (process.platform === 'win32') {
+    return nativeImage.createFromPath(join(resourcesPath, 'icon.ico'))
+  }
+  if (process.platform === 'linux') {
+    return nativeImage.createFromPath(join(resourcesPath, 'icons', '512x512.png'))
+  }
+  // macOS: .icns — Electron otomatik alır, ama yine de set edebiliriz
+  return nativeImage.createFromPath(join(resourcesPath, 'icon.icns'))
+}
+
 function createWindow(): void {
+  const icon = getAppIcon()
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -24,6 +42,7 @@ function createWindow(): void {
     frame: false,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
     backgroundColor: '#0a0a0f',
+    icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -86,6 +105,7 @@ app.on('before-quit', () => {
   dockerMonitor.stopAll()
   kubernetesMonitor.stopAll()
   logStreamer.stopAll()
+  sshTerminalManager.stopAll()
   sshManager.disconnectAll()
 })
 

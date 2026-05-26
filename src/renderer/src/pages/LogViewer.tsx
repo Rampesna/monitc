@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { ScrollText, Plus, X, Pause, Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'
@@ -21,16 +22,57 @@ interface LogTab {
 export function LogViewer(): React.ReactElement {
   const { t } = useTranslation()
   const { state } = useApp()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [tabs, setTabs] = useState<LogTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [newType, setNewType] = useState<'docker' | 'k8s'>('docker')
   const [selectedSource, setSelectedSource] = useState('')
   const [selectedServerId, setSelectedServerId] = useState(state.selectedServerId ?? state.servers[0]?.id ?? '')
+  const autoStartedRef = useRef(false)
 
   const sid = selectedServerId
   const dockerData = state.dockerData[sid]
   const k8sData = state.kubernetesData[sid]
+
+  // Auto-start stream when navigated from Docker/K8s page with URL params
+  useEffect(() => {
+    if (autoStartedRef.current) return
+    const type = searchParams.get('type') as 'docker' | 'k8s' | null
+    const srvId = searchParams.get('serverId')
+    const containerId = searchParams.get('containerId')
+    const podNs = searchParams.get('namespace')
+    const podName = searchParams.get('pod')
+    const label = searchParams.get('label')
+
+    if (!type || !srvId) return
+    if (type === 'docker' && !containerId) return
+    if (type === 'k8s' && (!podNs || !podName)) return
+
+    autoStartedRef.current = true
+    setSearchParams({}, { replace: true })
+
+    const startStream = async (): Promise<void> => {
+      let streamId: string | null = null
+      let tabLabel = ''
+
+      if (type === 'docker' && containerId) {
+        streamId = await window.monitcAPI.logs.startDocker(srvId, containerId, 500)
+        tabLabel = label ?? `docker:${containerId.slice(0, 8)}`
+      } else if (type === 'k8s' && podNs && podName) {
+        streamId = await window.monitcAPI.logs.startK8s(srvId, podNs, podName)
+        tabLabel = label ?? podName
+      }
+
+      if (!streamId) return
+      const tabId = Date.now().toString()
+      const source = type === 'docker' ? (containerId ?? '') : `${podNs}/${podName}`
+      setTabs((prev) => [...prev, { id: tabId, label: tabLabel, streamId, serverId: srvId, type, source, paused: false, termRef: null }])
+      setActiveTabId(tabId)
+    }
+
+    startStream().catch(console.error)
+  }, [searchParams, setSearchParams])
 
   const addTab = async (): Promise<void> => {
     if (!selectedSource || !sid) return

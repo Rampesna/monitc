@@ -4,6 +4,7 @@ import { AppProvider, useApp } from './context/AppContext'
 import { MainLayout } from './components/layout/MainLayout'
 import { LicenseGate } from './pages/LicenseGate'
 import { Dashboard } from './pages/Dashboard'
+import { ServersPage } from './pages/ServersPage'
 import { ServerDashboard } from './pages/ServerDashboard'
 import { DockerPage } from './pages/DockerPage'
 import { DockerDetail } from './pages/DockerDetail'
@@ -17,6 +18,7 @@ import { Spinner } from './components/common/Spinner'
 const K8sManagePage = lazy(() => import('./pages/K8sManagePage'))
 const CICDPage = lazy(() => import('./pages/CICDPage'))
 const DeployPage = lazy(() => import('./pages/DeployPage'))
+const TerminalPage = lazy(() => import('./pages/TerminalPage'))
 
 function PageLoader() {
   return (
@@ -70,6 +72,7 @@ function AppInner(): React.ReactElement {
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Dashboard />} />
+          <Route path="servers" element={<ServersPage />} />
           <Route path="server/:serverId" element={<ServerDashboard />} />
           <Route path="docker" element={<DockerPage />} />
           <Route path="docker/:serverId" element={<DockerPage />} />
@@ -80,6 +83,7 @@ function AppInner(): React.ReactElement {
           <Route path="k8s-manage" element={<Suspense fallback={<PageLoader />}><K8sManagePage /></Suspense>} />
           <Route path="cicd" element={<Suspense fallback={<PageLoader />}><CICDPage /></Suspense>} />
           <Route path="deploy" element={<Suspense fallback={<PageLoader />}><DeployPage /></Suspense>} />
+          <Route path="terminal" element={<Suspense fallback={<PageLoader />}><TerminalPage /></Suspense>} />
           <Route path="logs" element={<LogViewer />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="settings" element={<SettingsLayout />} />

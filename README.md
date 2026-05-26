@@ -36,6 +36,17 @@
 - **Kubeconfig generator** — export a CI/CD-ready Base64 kubeconfig (localhost replaced with server IP)
 - Full support for K3s, K8s, and standard kubeadm clusters
 
+### 💻 SSH Terminal
+- **Multi-tab terminal** — open multiple interactive SSH shell sessions simultaneously
+- **Full xterm.js terminal** — true 256-color terminal with resize support
+- **Per-server tabs** — open a terminal to any configured server with one click
+- Runs independently of the monitoring session — connect and disconnect without affecting metrics
+
+### 🖥️ Servers Overview
+- Dedicated **Servers** page listing all configured servers as cards
+- Live **connection status**, CPU and RAM gauges per server at a glance
+- One-click navigation to a server's detailed dashboard
+
 ### 🔁 CI/CD & Deployments
 - **GitHub Actions** — browse repos and workflows, trigger `workflow_dispatch` events, monitor run status and job steps
 - **GitLab CI/CD** — browse projects and pipelines, trigger new pipelines, monitor job status
@@ -159,6 +170,7 @@ src/
 │   ├── ssh/                # SSH connection pool + command definitions
 │   │   ├── ssh-manager.ts
 │   │   ├── ssh-commands.ts
+│   │   ├── ssh-terminal-manager.ts
 │   │   ├── k8s-management-commands.ts
 │   │   ├── rollout-commands.ts
 │   │   └── git-commands.ts
@@ -171,7 +183,7 @@ src/
     └── src/
         ├── i18n/           # i18next + 7 locale files
         ├── context/        # AppContext (global state + IPC listeners)
-        ├── pages/          # Route-level page components
+        ├── pages/          # Route-level page components (Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …)
         └── components/     # Reusable UI components
 ```
 
@@ -193,6 +205,8 @@ src/
 | `alerts:list/add/update/remove` | Renderer → Main | Alert rule CRUD |
 | `settings:get/save` | Renderer → Main | Integration config |
 | `preferences:get/save` | Renderer → Main | App preferences |
+| `terminal:open/write/resize/close` | Renderer → Main | SSH terminal session management |
+| `terminal:data` | Main → Renderer | Live shell output stream |
 
 ---
 
@@ -209,6 +223,16 @@ src/
 You can provide either:
 - **PEM key content** — paste the full `-----BEGIN OPENSSH PRIVATE KEY-----` block
 - **Key file path** — absolute path to your private key file (e.g. `~/.ssh/id_rsa`)
+
+---
+
+## 💻 Using the SSH Terminal
+
+1. Click **Terminal** in the sidebar
+2. Click **New Terminal** and select a server from the dropdown
+3. The terminal connects and opens an interactive shell session
+4. Open multiple tabs for different servers simultaneously
+5. Use the **×** button on a tab or click **Disconnect** to close the session
 
 ---
 

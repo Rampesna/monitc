@@ -102,6 +102,9 @@ export function AppProvider({ children }: { children: React.ReactNode }): React.
       ])
       dispatch({ type: 'SET_LICENSE', key: licenseKey, isNew: false })
       dispatch({ type: 'SET_SERVERS', servers })
+      if (servers.length > 0) {
+        dispatch({ type: 'SELECT_SERVER', serverId: servers[0].id })
+      }
       dispatch({ type: 'SET_PREFERENCES', prefs })
       dispatch({ type: 'SET_LOADING', loading: false })
       if (prefs.language) {

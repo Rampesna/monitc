@@ -63,8 +63,20 @@ export class KubernetesMonitor extends EventEmitter {
       const events = this.parseEvents(eventsRes.stdout)
 
       this.emit('data', { serverId, available: true, pods, services, deployments, events })
-    } catch {
-      // emit nothing
+    } catch (err) {
+      const msg = (err as Error)?.message ?? ''
+      // Transient SSH connection errors: silently retry, don't change UI state
+      if (
+        msg.includes('not connected') ||
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('ETIMEDOUT') ||
+        msg.includes('Connection lost') ||
+        msg.includes('socket hang up') ||
+        msg.includes('read ECONNRESET')
+      ) return
+      // Unexpected error: emit available:false so UI moves past "Waiting..." state
+      console.error(`[kubernetes-monitor] poll error for ${serverId}:`, msg)
+      this.emit('data', { serverId, available: false, pods: [], services: [], deployments: [], events: [] })
     }
   }
 

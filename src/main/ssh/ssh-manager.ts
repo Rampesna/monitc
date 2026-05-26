@@ -21,15 +21,28 @@ const BASE_RETRY_DELAY = 2000
 
 export class SSHManager extends EventEmitter {
   private connections = new Map<string, ConnectionEntry>()
+  private connectPromises = new Map<string, Promise<void>>()
 
   async connect(server: Server): Promise<void> {
-    if (this.connections.has(server.id)) {
-      const entry = this.connections.get(server.id)!
-      if (entry.status === 'connected') return
-      if (entry.status === 'connecting') return
-      entry.client.destroy()
+    const existing = this.connections.get(server.id)
+    if (existing?.status === 'connected') return
+
+    const pending = this.connectPromises.get(server.id)
+    if (pending) return pending
+
+    if (existing && existing.status !== 'connected') {
+      if (existing.retryTimer) clearTimeout(existing.retryTimer)
+      existing.client.destroy()
+      this.connections.delete(server.id)
     }
-    return this.doConnect(server, 0)
+
+    const promise = this.doConnect(server, 0)
+    this.connectPromises.set(server.id, promise)
+    try {
+      await promise
+    } finally {
+      this.connectPromises.delete(server.id)
+    }
   }
 
   private doConnect(server: Server, retryCount: number): Promise<void> {
@@ -101,6 +114,7 @@ export class SSHManager extends EventEmitter {
     entry.status = 'disconnected'
     entry.client.destroy()
     this.connections.delete(serverId)
+    this.connectPromises.delete(serverId)
     this.emit('status', { serverId, status: 'disconnected' })
   }
 
