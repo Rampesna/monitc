@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Cpu, HardDrive, Network, Clock, Plus } from 'lucide-react'
+import { Server, Cpu, HardDrive, Network, Clock, Plus, Download } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
@@ -9,6 +9,7 @@ import { StatusDot } from '../components/common/StatusDot'
 import { AreaChart } from '../components/charts/AreaChart'
 import { Badge } from '../components/common/Badge'
 import { Button } from '../components/common/Button'
+import { ExportReportModal } from '../components/export/ExportReportModal'
 import { formatBytes, formatUptime } from '../lib/format'
 import type { SystemMetrics, ConnectionState } from '../lib/types'
 
@@ -16,6 +17,7 @@ export function Dashboard(): React.ReactElement {
   const { t } = useTranslation()
   const { state } = useApp()
   const navigate = useNavigate()
+  const [showExport, setShowExport] = useState(false)
 
   const serverId = state.selectedServerId ?? ''
   const server = state.servers.find((s) => s.id === serverId)
@@ -66,8 +68,15 @@ export function Dashboard(): React.ReactElement {
             </div>
           )}
           <StatusDot status={connStatus} showLabel />
+          <Button variant="ghost" size="sm" icon={<Download size={13} />} onClick={() => setShowExport(true)}>
+            {t('export.button')}
+          </Button>
         </div>
       </div>
+
+      {showExport && server && (
+        <ExportReportModal server={server} onClose={() => setShowExport(false)} />
+      )}
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <Card className="flex flex-col items-center gap-3 py-5">

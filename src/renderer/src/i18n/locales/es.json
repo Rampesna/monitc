@@ -403,5 +403,22 @@
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
     "selectServer": "Select a Server"
+  },
+  "export": {
+    "button": "Exportar",
+    "title": "Exportar informe",
+    "timeRange": "Rango de tiempo",
+    "format": "Formato de exportación",
+    "pdfDesc": "PDF de varias páginas, ideal para clientes",
+    "pngDesc": "Imagen única de alta resolución",
+    "preview": "Vista previa del informe",
+    "loading": "Cargando datos…",
+    "download": "Descargar",
+    "exporting": "Exportando…",
+    "noData": "No hay datos de métricas para este período",
+    "noDataHint": "Asegúrese de que el servidor esté conectado y haya sido monitorizado por un tiempo",
+    "samples": "muestras",
+    "previewNote": "Vista previa reducida — resolución completa al exportar",
+    "back": "Volver"
   }
 }

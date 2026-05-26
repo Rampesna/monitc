@@ -403,5 +403,22 @@
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
     "selectServer": "Select a Server"
+  },
+  "export": {
+    "button": "Esporta",
+    "title": "Esporta rapporto",
+    "timeRange": "Intervallo di tempo",
+    "format": "Formato di esportazione",
+    "pdfDesc": "PDF multipagina, ideale per i clienti",
+    "pngDesc": "Immagine singola ad alta risoluzione",
+    "preview": "Anteprima rapporto",
+    "loading": "Caricamento dati…",
+    "download": "Scarica",
+    "exporting": "Esportazione…",
+    "noData": "Nessun dato metrico disponibile per questo periodo",
+    "noDataHint": "Assicurati che il server sia connesso e sia stato monitorato per un po' di tempo",
+    "samples": "campioni",
+    "previewNote": "Anteprima ridimensionata — risoluzione completa all'esportazione",
+    "back": "Indietro"
   }
 }

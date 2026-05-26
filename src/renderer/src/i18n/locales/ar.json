@@ -403,5 +403,22 @@
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
     "selectServer": "Select a Server"
+  },
+  "export": {
+    "button": "تصدير",
+    "title": "تصدير التقرير",
+    "timeRange": "النطاق الزمني",
+    "format": "صيغة التصدير",
+    "pdfDesc": "PDF متعدد الصفحات، مثالي للإرسال للعملاء",
+    "pngDesc": "صورة واحدة بدقة عالية",
+    "preview": "معاينة التقرير",
+    "loading": "جارٍ تحميل البيانات…",
+    "download": "تنزيل",
+    "exporting": "جارٍ التصدير…",
+    "noData": "لا توجد بيانات مقاييس لهذه الفترة",
+    "noDataHint": "تأكد من أن الخادم متصل وقد تمت مراقبته لبعض الوقت",
+    "samples": "عينات",
+    "previewNote": "معاينة مصغّرة — دقة كاملة عند التصدير",
+    "back": "رجوع"
   }
 }

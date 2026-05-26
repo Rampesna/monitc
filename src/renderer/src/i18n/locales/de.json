@@ -403,5 +403,22 @@
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
     "selectServer": "Select a Server"
+  },
+  "export": {
+    "button": "Exportieren",
+    "title": "Bericht exportieren",
+    "timeRange": "Zeitraum",
+    "format": "Exportformat",
+    "pdfDesc": "Mehrseitiges PDF, ideal für Clients",
+    "pngDesc": "Einzelnes hochauflösendes Bild",
+    "preview": "Bericht vorschau",
+    "loading": "Daten werden geladen…",
+    "download": "Herunterladen",
+    "exporting": "Exportieren…",
+    "noData": "Keine Metrikdaten für diesen Zeitraum",
+    "noDataHint": "Stellen Sie sicher, dass der Server verbunden ist und eine Weile überwacht wurde",
+    "samples": "Messungen",
+    "previewNote": "Skalierte Vorschau — volle Auflösung beim Export",
+    "back": "Zurück"
   }
 }

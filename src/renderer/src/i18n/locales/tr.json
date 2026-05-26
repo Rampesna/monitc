@@ -407,5 +407,22 @@
     "empty": "Açık terminal oturumu yok.",
     "connectFirst": "İlk sunucuya bağlan",
     "selectServer": "Sunucu Seç"
+  },
+  "export": {
+    "button": "Dışa Aktar",
+    "title": "Rapor Dışa Aktar",
+    "timeRange": "Zaman Aralığı",
+    "format": "Dışa Aktarma Formatı",
+    "pdfDesc": "Çok sayfalı PDF, müşterilere göndermek için idealdir",
+    "pngDesc": "Tek yüksek çözünürlüklü görüntü",
+    "preview": "Raporu Önizle",
+    "loading": "Veriler yükleniyor…",
+    "download": "İndir",
+    "exporting": "Dışa aktarılıyor…",
+    "noData": "Bu dönem için metrik verisi bulunamadı",
+    "noDataHint": "Sunucunun bağlı olduğundan ve bir süre izlendiğinden emin olun",
+    "samples": "örnek",
+    "previewNote": "Ölçeklendirilmiş önizleme — dışa aktarmada tam çözünürlük",
+    "back": "Geri"
   }
 }

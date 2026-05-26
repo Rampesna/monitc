@@ -407,5 +407,22 @@
     "connecting": "Connecting",
     "reconnecting": "Reconnecting",
     "error": "Connection Error"
+  },
+  "export": {
+    "button": "Export",
+    "title": "Export Report",
+    "timeRange": "Time Range",
+    "format": "Export Format",
+    "pdfDesc": "Multi-page PDF, ideal for sending to clients",
+    "pngDesc": "Single high-resolution image",
+    "preview": "Preview Report",
+    "loading": "Loading data…",
+    "download": "Download",
+    "exporting": "Exporting…",
+    "noData": "No metric data available for this period",
+    "noDataHint": "Make sure the server is connected and has been monitored for some time",
+    "samples": "samples",
+    "previewNote": "Scaled preview — full resolution on export",
+    "back": "Back"
   }
 }
