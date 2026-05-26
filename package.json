@@ -22,6 +22,7 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-search": "^0.15.0",
     "@xterm/xterm": "^5.5.0",
+    "better-sqlite3": "^12.10.0",
     "i18next": "^26.2.0",
     "libsodium-wrappers": "^0.8.4",
     "lucide-react": "^0.513.0",
@@ -39,6 +40,7 @@
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@electron-toolkit/utils": "^4.0.0",
     "@tailwindcss/vite": "^4.1.7",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.15.21",
     "@types/nodemailer": "^6.4.17",
     "@types/react": "^19.1.4",
@@ -62,6 +64,9 @@
       "resources/**/*"
     ],
     "asar": true,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
     "mac": {
       "target": [
         {
@@ -72,7 +77,13 @@
         }
       ],
       "icon": "resources/icon.icns",
-      "category": "public.app-category.developer-tools"
+      "category": "public.app-category.developer-tools",
+      "identity": "Talha Can (SGQ86WW4J3)",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "resources/entitlements.mac.plist",
+      "entitlementsInherit": "resources/entitlements.mac.plist",
+      "notarize": false
     },
     "win": {
       "target": [

@@ -26,7 +26,9 @@ const monitcAPI = {
       const handler = (_: unknown, data: unknown): void => cb(data)
       ipcRenderer.on('connection:status', handler)
       return () => ipcRenderer.removeListener('connection:status', handler)
-    }
+    },
+    getHistory: (serverId: string, hours?: number): Promise<unknown[]> =>
+      ipcRenderer.invoke('metrics:history', serverId, hours ?? 24)
   },
   docker: {
     onUpdate: (cb: (data: unknown) => void): (() => void) => {

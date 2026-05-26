@@ -1,17 +1,26 @@
 import { EventEmitter } from 'events'
 import { sshManager } from '../ssh/ssh-manager'
 import { COMMANDS } from '../ssh/ssh-commands'
+import { metricsDb } from './metrics-db'
 import type { SystemMetrics, DiskPartition, NetworkInterface } from '../store/types'
+
+// Purge old metrics once per hour
+const PURGE_INTERVAL_MS = 60 * 60 * 1000
 
 export class SystemMonitor extends EventEmitter {
   private timers = new Map<string, ReturnType<typeof setInterval>>()
   private prevNetworkStats = new Map<string, Record<string, { rx: number; tx: number }>>()
+  private purgeTimer: ReturnType<typeof setInterval> | null = null
 
   start(serverId: string, intervalSeconds: number): void {
     this.stop(serverId)
     const poll = (): void => { this.poll(serverId).catch(() => {}) }
     poll()
     this.timers.set(serverId, setInterval(poll, intervalSeconds * 1000))
+
+    if (!this.purgeTimer) {
+      this.purgeTimer = setInterval(() => metricsDb.purgeOld(), PURGE_INTERVAL_MS)
+    }
   }
 
   stop(serverId: string): void {
@@ -24,6 +33,11 @@ export class SystemMonitor extends EventEmitter {
 
   stopAll(): void {
     for (const id of this.timers.keys()) this.stop(id)
+    if (this.purgeTimer) {
+      clearInterval(this.purgeTimer)
+      this.purgeTimer = null
+    }
+    metricsDb.close()
   }
 
   private async poll(serverId: string): Promise<void> {
@@ -53,6 +67,7 @@ export class SystemMonitor extends EventEmitter {
         uptime: uptimeRes.stdout.trim()
       }
       this.emit('metrics', metrics)
+      metricsDb.insert(metrics)
     } catch {
       // Connection might be down; emit nothing
     }

@@ -7,6 +7,7 @@ import { logStreamer } from '../monitors/log-streamer'
 import { sshTerminalManager } from '../ssh/ssh-terminal-manager'
 import { alertEngine } from '../alerts/alert-engine'
 import { loadData, saveData, resetData } from '../store/store'
+import { metricsDb } from '../monitors/metrics-db'
 import { testSmtp } from '../alerts/channels/smtp-channel'
 import { testWhatsApp } from '../alerts/channels/whatsapp-channel'
 import { testTelegram } from '../alerts/channels/telegram-channel'
@@ -237,5 +238,11 @@ export function setupIpcHandlers(): void {
       const res = await sshManager.execCommand(serverId, COMMANDS.kubernetes.podDescribe(namespace, pod))
       return res.stdout
     } catch { return '' }
+  })
+
+  // hours defaults to 24; max clamped to 7*24=168
+  ipcMain.handle('metrics:history', (_, serverId: string, hours: number = 24) => {
+    const clamped = Math.min(Math.max(1, hours), 168)
+    return metricsDb.query(serverId, clamped)
   })
 }

@@ -2,6 +2,15 @@
 
 declare const __APP_VERSION__: string | undefined
 
+interface MetricsHistoryPoint {
+  timestamp: number
+  cpu: { percent: number; loadAvg: [number, number, number] }
+  memory: { total: number; used: number; free: number; percent: number }
+  disk: Array<{ source: string; total: number; used: number; available: number; percent: number; mountpoint: string }>
+  network: Array<{ name: string; rxBytes: number; txBytes: number; rxPackets: number; txPackets: number }>
+  uptime: string
+}
+
 interface MonitcAPI {
   servers: {
     list: () => Promise<unknown[]>
@@ -16,6 +25,7 @@ interface MonitcAPI {
     getStatus: (serverId: string) => Promise<string>
     onMetricsUpdate: (cb: (metrics: unknown) => void) => () => void
     onConnectionStatus: (cb: (status: unknown) => void) => () => void
+    getHistory: (serverId: string, hours?: number) => Promise<MetricsHistoryPoint[]>
   }
   docker: {
     onUpdate: (cb: (data: unknown) => void) => () => void
