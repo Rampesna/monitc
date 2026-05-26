@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Cross-platform server monitoring desktop application",
   "main": "./out/main/index.js",
-  "author": "monitc contributors",
+  "author": {
+    "name": "Talha Can Rampesna",
+    "email": "rampesna@gmail.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
