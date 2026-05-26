@@ -400,6 +400,7 @@
     "reconnect": "Reconnect",
     "noServers": "Add a server in Settings to open an SSH terminal.",
     "empty": "No terminal sessions open.",
-    "connectFirst": "Connect to first server"
+    "connectFirst": "Connect to first server",
+    "selectServer": "Select a Server"
   }
 }

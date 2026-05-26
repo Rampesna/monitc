@@ -1,8 +1,7 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { lazy, Suspense } from 'react'
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AppProvider, useApp } from './context/AppContext'
 import { MainLayout } from './components/layout/MainLayout'
-import { LicenseGate } from './pages/LicenseGate'
 import { Dashboard } from './pages/Dashboard'
 import { ServersPage } from './pages/ServersPage'
 import { ServerDashboard } from './pages/ServerDashboard'
@@ -29,41 +28,16 @@ function PageLoader() {
 }
 
 function AppInner(): React.ReactElement {
-  const { state, dispatch } = useApp()
-  const [licenseVerified, setLicenseVerified] = useState(false)
-  const [licenseKey, setLicenseKey] = useState('')
-  const [licenseIsNew, setLicenseIsNew] = useState(false)
-  const [licenseInfoLoaded, setLicenseInfoLoaded] = useState(false)
+  const { state } = useApp()
 
-  useEffect(() => {
-    window.monitcAPI.app.getLicenseInfo().then(({ key, isNew }) => {
-      setLicenseKey(key)
-      setLicenseIsNew(isNew)
-      setLicenseInfoLoaded(true)
-    }).catch(console.error)
-  }, [])
-
-  if (state.isLoading || !licenseInfoLoaded) {
+  if (state.isLoading) {
     return (
       <div className="fixed inset-0 bg-[#0a0a0f] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Spinner size="lg" className="text-indigo-400" />
-          <p className="text-slate-400 text-sm">Yükleniyor...</p>
+          <p className="text-slate-400 text-sm">Loading...</p>
         </div>
       </div>
-    )
-  }
-
-  if (!licenseVerified) {
-    return (
-      <LicenseGate
-        licenseKey={licenseKey}
-        isNew={licenseIsNew}
-        onContinue={() => {
-          setLicenseVerified(true)
-          dispatch({ type: 'SET_LICENSE', key: licenseKey, isNew: false })
-        }}
-      />
     )
   }
 

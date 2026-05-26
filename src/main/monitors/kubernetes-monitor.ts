@@ -27,11 +27,18 @@ function ageString(creationTimestamp: string): string {
 export class KubernetesMonitor extends EventEmitter {
   private timers = new Map<string, ReturnType<typeof setInterval>>()
 
-  start(serverId: string, intervalSeconds: number): void {
+  start(serverId: string, intervalSeconds: number, initialDelayMs = 0): void {
     this.stop(serverId)
     const poll = (): void => { this.poll(serverId).catch(() => {}) }
-    poll()
-    this.timers.set(serverId, setInterval(poll, intervalSeconds * 1000))
+    const startPolling = (): void => {
+      poll()
+      this.timers.set(serverId, setInterval(poll, intervalSeconds * 1000))
+    }
+    if (initialDelayMs > 0) {
+      setTimeout(startPolling, initialDelayMs)
+    } else {
+      startPolling()
+    }
   }
 
   stop(serverId: string): void {
@@ -50,12 +57,10 @@ export class KubernetesMonitor extends EventEmitter {
         return
       }
 
-      const [podsRes, servicesRes, deploymentsRes, eventsRes] = await Promise.all([
-        sshManager.execCommand(serverId, COMMANDS.kubernetes.pods),
-        sshManager.execCommand(serverId, COMMANDS.kubernetes.services),
-        sshManager.execCommand(serverId, COMMANDS.kubernetes.deployments),
-        sshManager.execCommand(serverId, COMMANDS.kubernetes.events)
-      ])
+      const podsRes = await sshManager.execCommand(serverId, COMMANDS.kubernetes.pods)
+      const servicesRes = await sshManager.execCommand(serverId, COMMANDS.kubernetes.services)
+      const deploymentsRes = await sshManager.execCommand(serverId, COMMANDS.kubernetes.deployments)
+      const eventsRes = await sshManager.execCommand(serverId, COMMANDS.kubernetes.events)
 
       const pods = this.parsePods(podsRes.stdout)
       const services = this.parseServices(servicesRes.stdout)
@@ -65,16 +70,19 @@ export class KubernetesMonitor extends EventEmitter {
       this.emit('data', { serverId, available: true, pods, services, deployments, events })
     } catch (err) {
       const msg = (err as Error)?.message ?? ''
-      // Transient SSH connection errors: silently retry, don't change UI state
+      // Transient SSH errors: silently retry, don't change UI state
       if (
         msg.includes('not connected') ||
         msg.includes('ECONNREFUSED') ||
         msg.includes('ETIMEDOUT') ||
         msg.includes('Connection lost') ||
         msg.includes('socket hang up') ||
-        msg.includes('read ECONNRESET')
+        msg.includes('read ECONNRESET') ||
+        msg.includes('Channel open failure') ||
+        msg.includes('channel open') ||
+        msg.includes('resource shortage') ||
+        msg.includes('CHANNEL_OPEN_FAILURE')
       ) return
-      // Unexpected error: emit available:false so UI moves past "Waiting..." state
       console.error(`[kubernetes-monitor] poll error for ${serverId}:`, msg)
       this.emit('data', { serverId, available: false, pods: [], services: [], deployments: [], events: [] })
     }

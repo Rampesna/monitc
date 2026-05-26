@@ -404,6 +404,7 @@
     "reconnect": "Yeniden Bağlan",
     "noServers": "SSH terminali için Ayarlar'dan sunucu ekleyin.",
     "empty": "Açık terminal oturumu yok.",
-    "connectFirst": "İlk sunucuya bağlan"
+    "connectFirst": "İlk sunucuya bağlan",
+    "selectServer": "Sunucu Seç"
   }
 }

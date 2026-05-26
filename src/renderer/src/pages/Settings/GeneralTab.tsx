@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sliders, Shield, Trash2, Eye, EyeOff, Copy } from 'lucide-react'
+import { Sliders, Trash2 } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { useApp } from '../../context/AppContext'
@@ -9,11 +9,10 @@ import type { AppPreferences } from '../../lib/types'
 
 export function GeneralTab(): React.ReactElement {
   const { t } = useTranslation()
-  const { state, dispatch } = useApp()
+  const { dispatch } = useApp()
   const [prefs, setPrefs] = useState<AppPreferences>({ ...state.preferences })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [showKey, setShowKey] = useState(false)
   const [resetting, setResetting] = useState(false)
 
   const handleSave = async (): Promise<void> => {
@@ -119,32 +118,6 @@ export function GeneralTab(): React.ReactElement {
               {dockerIntervalOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-        </div>
-      </Card>
-
-      <Card className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Shield size={14} className="text-indigo-400" />
-          <h3 className="text-sm font-semibold text-slate-200">{t('generalTab.licenseKey')}</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex-1 font-mono text-sm bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-slate-300 tracking-widest">
-            {showKey ? state.licenseKey : '****-****-****-****-****-****'}
-          </div>
-          <button
-            onClick={() => setShowKey((s) => !s)}
-            className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
-            title={showKey ? t('generalTab.hideKey') : t('generalTab.showKey')}
-          >
-            {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-          <button
-            onClick={() => navigator.clipboard.writeText(state.licenseKey ?? '')}
-            className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors"
-            title={t('generalTab.copyKey')}
-          >
-            <Copy size={14} />
-          </button>
         </div>
       </Card>
 

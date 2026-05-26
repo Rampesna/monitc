@@ -53,9 +53,6 @@ interface MonitcAPI {
   }
   app: {
     platform: string
-    getLicenseKey: () => Promise<string>
-    getLicenseInfo: () => Promise<{ key: string; isNew: boolean }>
-    confirmLicense: () => Promise<boolean>
     getVersion: () => Promise<string>
     resetData: () => Promise<boolean>
     minimize: () => void

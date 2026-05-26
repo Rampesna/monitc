@@ -46,13 +46,11 @@ export class DockerMonitor extends EventEmitter {
         return
       }
 
-      const [containersRes, imagesRes, statsRes, networksRes, volumesRes] = await Promise.all([
-        sshManager.execCommand(serverId, COMMANDS.docker.containers),
-        sshManager.execCommand(serverId, COMMANDS.docker.images),
-        sshManager.execCommand(serverId, COMMANDS.docker.stats),
-        sshManager.execCommand(serverId, COMMANDS.docker.networks),
-        sshManager.execCommand(serverId, COMMANDS.docker.volumes)
-      ])
+      const containersRes = await sshManager.execCommand(serverId, COMMANDS.docker.containers)
+      const imagesRes = await sshManager.execCommand(serverId, COMMANDS.docker.images)
+      const statsRes = await sshManager.execCommand(serverId, COMMANDS.docker.stats)
+      const networksRes = await sshManager.execCommand(serverId, COMMANDS.docker.networks)
+      const volumesRes = await sshManager.execCommand(serverId, COMMANDS.docker.volumes)
 
       const rawStats = parseJsonLines<Record<string, string>>(statsRes.stdout)
       const statsMap = new Map(rawStats.map((s) => [s.ID || s.id, s]))
@@ -106,7 +104,11 @@ export class DockerMonitor extends EventEmitter {
         msg.includes('ETIMEDOUT') ||
         msg.includes('Connection lost') ||
         msg.includes('socket hang up') ||
-        msg.includes('read ECONNRESET')
+        msg.includes('read ECONNRESET') ||
+        msg.includes('Channel open failure') ||
+        msg.includes('channel open') ||
+        msg.includes('resource shortage') ||
+        msg.includes('CHANNEL_OPEN_FAILURE')
       ) return
       console.error(`[docker-monitor] poll error for ${serverId}:`, msg)
       this.emit('data', { serverId, available: false, containers: [], images: [], networks: [], volumes: [] })

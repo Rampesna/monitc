@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { TerminalSquare, Plus, X, RefreshCw } from 'lucide-react'
+import { TerminalSquare, Plus, X, RefreshCw, Server as ServerIcon } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Button } from '../components/common/Button'
 import { SSHTerminal } from '../components/terminal/SSHTerminal'
+import { StatusDot } from '../components/common/StatusDot'
 import type { Server } from '../lib/types'
 
 interface TerminalTab {
@@ -20,8 +21,11 @@ export function TerminalPage(): React.ReactElement {
   const { state } = useApp()
   const [tabs, setTabs] = useState<TerminalTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [showServerPicker, setShowServerPicker] = useState(false)
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
+  const openServerPicker = (): void => setShowServerPicker(true)
 
   const connectTab = useCallback(async (tabId: string, server: Server): Promise<void> => {
     setTabs((prev) => prev.map((tab) =>
@@ -51,6 +55,7 @@ export function TerminalPage(): React.ReactElement {
   }, [])
 
   const addTab = (server: Server): void => {
+    setShowServerPicker(false)
     const tabId = crypto.randomUUID()
     const tab: TerminalTab = {
       id: tabId,
@@ -104,20 +109,9 @@ export function TerminalPage(): React.ReactElement {
             </Button>
           )}
           {state.servers.length > 0 && (
-            <select
-              className="bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
-              defaultValue=""
-              onChange={(e) => {
-                const server = state.servers.find((s) => s.id === e.target.value)
-                if (server) addTab(server)
-                e.target.value = ''
-              }}
-            >
-              <option value="" disabled>{t('terminal.newSession')}</option>
-              {state.servers.map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.host})</option>
-              ))}
-            </select>
+            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openServerPicker}>
+              {t('terminal.newSession')}
+            </Button>
           )}
         </div>
       </div>
@@ -157,8 +151,8 @@ export function TerminalPage(): React.ReactElement {
               <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
                 <TerminalSquare size={32} className="opacity-30" />
                 <p className="text-sm">{t('terminal.empty')}</p>
-                <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => addTab(state.servers[0])}>
-                  {t('terminal.connectFirst')}
+                <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openServerPicker}>
+                  {t('terminal.newSession')}
                 </Button>
               </div>
             ) : (
@@ -178,6 +172,53 @@ export function TerminalPage(): React.ReactElement {
             )}
           </div>
         </>
+      )}
+
+      {/* Server picker modal */}
+      {showServerPicker && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowServerPicker(false)}
+        >
+          <div
+            className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
+              <div className="flex items-center gap-2.5">
+                <TerminalSquare size={16} className="text-indigo-400" />
+                <span className="text-sm font-semibold text-slate-200">{t('terminal.selectServer')}</span>
+              </div>
+              <button
+                onClick={() => setShowServerPicker(false)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="py-2 max-h-72 overflow-y-auto">
+              {state.servers.map((server) => {
+                const connStatus = state.connectionStatuses[server.id] ?? 'disconnected'
+                return (
+                  <button
+                    key={server.id}
+                    onClick={() => addTab(server)}
+                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors text-left"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex-shrink-0">
+                      <ServerIcon size={14} className="text-indigo-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-slate-200 truncate">{server.name}</div>
+                      <div className="text-xs text-slate-500 font-mono truncate">{server.host}:{server.port}</div>
+                    </div>
+                    <StatusDot status={connStatus} size="sm" showLabel />
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

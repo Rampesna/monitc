@@ -95,9 +95,6 @@ const monitcAPI = {
   },
   app: {
     platform: process.platform,
-    getLicenseKey: (): Promise<string> => ipcRenderer.invoke('app:license'),
-    getLicenseInfo: (): Promise<{ key: string; isNew: boolean }> => ipcRenderer.invoke('app:license-info'),
-    confirmLicense: (): Promise<boolean> => ipcRenderer.invoke('app:license-confirm'),
     getVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
     resetData: (): Promise<boolean> => ipcRenderer.invoke('app:reset'),
     minimize: (): void => ipcRenderer.send('window:minimize'),

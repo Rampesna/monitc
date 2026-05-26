@@ -1,4 +1,4 @@
-export const KUBECTL_PREFIX = `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml 2>/dev/null; KUBECONFIG=${`\${KUBECONFIG:-$HOME/.kube/config}`}; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl")`
+export const KUBECTL_PREFIX = `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; KUBECONFIG=${`\${KUBECONFIG:-$HOME/.kube/config}`}; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl")`
 
 export function k8sCmd(cmd: string): string {
   return `${KUBECTL_PREFIX}; $_K ${cmd}`

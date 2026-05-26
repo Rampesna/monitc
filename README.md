@@ -40,22 +40,15 @@
 - **Multi-tab terminal** — open multiple interactive SSH shell sessions simultaneously
 - **Full xterm.js terminal** — true 256-color terminal with resize support
 - **Per-server tabs** — open a terminal to any configured server with one click
-- Runs independently of the monitoring session — connect and disconnect without affecting metrics
 
 ### 🖥️ Servers Overview
 - Dedicated **Servers** page listing all configured servers as cards
 - Live **connection status**, CPU and RAM gauges per server at a glance
-- One-click navigation to a server's detailed dashboard
 
 ### 🔁 CI/CD & Deployments
 - **GitHub Actions** — browse repos and workflows, trigger `workflow_dispatch` events, monitor run status and job steps
 - **GitLab CI/CD** — browse projects and pipelines, trigger new pipelines, monitor job status
 - **Deploy panel** — link a server path + repo + K8s deployment; one-click Git Pull, CI/CD trigger, and Rollout Restart/Undo/Scale/SetImage
-
-### 🔐 Security
-- All sensitive data (SSH credentials, API tokens) encrypted locally with **AES-256-GCM**
-- Encryption key derived from a machine-bound license key + hardware fingerprint using **PBKDF2**
-- No telemetry, no cloud, no account required — 100% local
 
 ### 🔔 Alerts
 - Configurable threshold rules: CPU > X%, RAM > X%, Disk > X% for N consecutive minutes
@@ -97,13 +90,41 @@
 
 ## 📥 Download
 
-| Platform | Format | Notes |
-|----------|--------|-------|
-| macOS (Apple Silicon + Intel) | `.dmg` Universal | `npm run build:mac` |
-| Windows | `.exe` NSIS Installer | `npm run build:win` |
-| Linux | `.AppImage` / `.deb` | `npm run build:linux` |
+Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
-> Pre-built releases will appear on the [GitHub Releases](../../releases) page.
+| Platform | Format | Architecture |
+|----------|--------|--------------|
+| macOS | `.dmg` | Universal (Apple Silicon + Intel) |
+| Windows | `.exe` NSIS Installer | x64 |
+| Linux | `.AppImage` / `.deb` | x64 |
+
+### macOS (Homebrew)
+
+```bash
+brew tap Rampesna/tap
+brew install --cask monitc
+```
+
+### macOS (Direct download)
+
+Download `monitc-1.0.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
+
+### Windows
+
+Download `monitc-Setup-1.0.0.exe` from [Releases](../../releases) and run the installer.
+
+### Linux (AppImage)
+
+```bash
+chmod +x monitc-1.0.0.AppImage
+./monitc-1.0.0.AppImage
+```
+
+### Linux (Debian / Ubuntu)
+
+```bash
+sudo dpkg -i monitc_1.0.0_amd64.deb
+```
 
 ---
 
@@ -146,17 +167,63 @@ npm run build:win
 npm run build:linux
 ```
 
-After `build:mac`, open `dist/monitc-<version>-universal.dmg` and drag the app to `/Applications`.
+---
+
+## 🔧 Adding a Server
+
+1. Open **Settings → Servers**
+2. Click **Add Server**
+3. Fill in: Host/IP, port (default 22), username, auth method
+4. Click **Test Connection** — if it succeeds, click **Save**
+5. Monitoring starts automatically
+
+### SSH Key Authentication
+
+You can provide either:
+- **PEM key content** — paste the full `-----BEGIN OPENSSH PRIVATE KEY-----` block
+- **Key file path** — absolute path to your private key file (e.g. `~/.ssh/id_rsa`)
 
 ---
 
-## 🔑 First Launch & License Key
+## 💻 Using the SSH Terminal
 
-On first launch, monitc generates a **unique 24-character license key** tied to your machine.
+1. Click **Terminal** in the sidebar
+2. Click **+ New Session** and select a server from the modal
+3. The terminal connects and opens an interactive shell session
+4. Open multiple tabs for different servers simultaneously
+5. Use the **×** button on a tab to close the session
 
-> ⚠️ **Write it down or copy it before clicking "I saved the key".** If you lose it, you will need to reset all application data.
+---
 
-The key is stored encrypted in `~/Library/Application Support/monitc/` (macOS) or equivalent user data path on other platforms.
+## 🔔 Setting Up Alerts
+
+1. Go to **Settings → Integrations** and configure your notification channel (SMTP / WhatsApp / Telegram)
+2. Go to **Alerts** and click **Add Rule**
+3. Choose metric, operator, threshold, and duration
+4. Select the notification channel
+5. Save — the alert engine evaluates metrics in real time
+
+---
+
+## 🚢 CI/CD Integration
+
+### GitHub Actions
+
+1. **Settings → Git** — enter your GitHub Personal Access Token (`repo`, `workflow`, `secrets` scopes)
+2. Go to **CI/CD** and select a repository
+3. Choose a workflow from the dropdown and click **▶ Run**
+
+### GitLab CI/CD
+
+1. **Settings → Git** — enter your GitLab PAT (`api` scope), optionally a self-hosted base URL
+2. Go to **CI/CD → GitLab**, select a project
+3. Enter branch/tag and click **▶ Run**
+
+### Kubeconfig for CI/CD
+
+1. Go to **K8s Management → Kubeconfig**
+2. Click **Generate CI/CD Kubeconfig** — it replaces `localhost` with your server's actual IP
+3. Copy the Base64 string and add it as a secret (`KUBECONFIG_BASE64`) in your GitHub/GitLab project
 
 ---
 
@@ -165,8 +232,7 @@ The key is stored encrypted in `~/Library/Application Support/monitc/` (macOS) o
 ```
 src/
 ├── main/                   # Electron main process (Node.js)
-│   ├── security/           # AES-256-GCM encryption, machine-id, license key
-│   ├── store/              # Encrypted JSON persistence (monitc-data.enc)
+│   ├── store/              # Plain JSON persistence (monitc-data.json)
 │   ├── ssh/                # SSH connection pool + command definitions
 │   │   ├── ssh-manager.ts
 │   │   ├── ssh-commands.ts
@@ -207,64 +273,6 @@ src/
 | `preferences:get/save` | Renderer → Main | App preferences |
 | `terminal:open/write/resize/close` | Renderer → Main | SSH terminal session management |
 | `terminal:data` | Main → Renderer | Live shell output stream |
-
----
-
-## 🔧 Adding a Server
-
-1. Open **Settings → Servers**
-2. Click **Add Server**
-3. Fill in: Host/IP, port (default 22), username, auth method
-4. Click **Test Connection** — if it succeeds, click **Save**
-5. Monitoring starts automatically
-
-### SSH Key Authentication
-
-You can provide either:
-- **PEM key content** — paste the full `-----BEGIN OPENSSH PRIVATE KEY-----` block
-- **Key file path** — absolute path to your private key file (e.g. `~/.ssh/id_rsa`)
-
----
-
-## 💻 Using the SSH Terminal
-
-1. Click **Terminal** in the sidebar
-2. Click **New Terminal** and select a server from the dropdown
-3. The terminal connects and opens an interactive shell session
-4. Open multiple tabs for different servers simultaneously
-5. Use the **×** button on a tab or click **Disconnect** to close the session
-
----
-
-## 🔔 Setting Up Alerts
-
-1. Go to **Settings → Integrations** and configure your notification channel (SMTP / WhatsApp / Telegram)
-2. Go to **Alerts** and click **Add Rule**
-3. Choose metric, operator, threshold, and duration
-4. Select the notification channel
-5. Save — the alert engine evaluates metrics in real time
-
----
-
-## 🚢 CI/CD Integration
-
-### GitHub Actions
-
-1. **Settings → Git** — enter your GitHub Personal Access Token (`repo`, `workflow`, `secrets` scopes)
-2. Go to **CI/CD** and select a repository
-3. Choose a workflow from the dropdown and click **▶ Run**
-
-### GitLab CI/CD
-
-1. **Settings → Git** — enter your GitLab PAT (`api` scope), optionally a self-hosted base URL
-2. Go to **CI/CD → GitLab**, select a project
-3. Enter branch/tag and click **▶ Run**
-
-### Kubeconfig for CI/CD
-
-1. Go to **K8s Management → Kubeconfig**
-2. Click **Generate CI/CD Kubeconfig** — it replaces `localhost` with your server's actual IP
-3. Copy the Base64 string and add it as a secret (`KUBECONFIG_BASE64`) in your GitHub/GitLab project
 
 ---
 

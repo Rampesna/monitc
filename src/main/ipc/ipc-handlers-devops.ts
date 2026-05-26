@@ -5,19 +5,13 @@ import { ROLLOUT_CMDS } from '../ssh/rollout-commands'
 import { GIT_CMDS } from '../ssh/git-commands'
 import * as gh from '../ci/github-client'
 import * as gl from '../ci/gitlab-client'
-import { loadData, saveData } from '../store/secure-store'
+import { loadData, saveData } from '../store/store'
 import type { ProjectLink, GitHubConfig, GitLabConfig } from '../store/types'
 import crypto from 'crypto'
 
-let _licenseKey = ''
-let _machineId = ''
-
-export function setupDevOpsHandlers(licenseKey: string, machineId: string): void {
-  _licenseKey = licenseKey
-  _machineId = machineId
-
-  function getData() { return loadData(_licenseKey, _machineId) }
-  function save(data: ReturnType<typeof getData>) { saveData(data, _licenseKey, _machineId) }
+export function setupDevOpsHandlers(): void {
+  function getData() { return loadData() }
+  function save(data: ReturnType<typeof getData>) { saveData(data) }
 
   async function exec(serverId: string, cmd: string) {
     return sshManager.execCommand(serverId, cmd)

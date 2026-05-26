@@ -23,16 +23,16 @@ export const COMMANDS = {
     remove: (id: string): string => `docker rm -f ${id}`
   },
   kubernetes: {
-    check: `command -v kubectl >/dev/null 2>&1 && echo "kubectl" || { command -v k3s >/dev/null 2>&1 && echo "k3s" || exit 1; }`,
-    nodes: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get nodes -o json 2>/dev/null`,
-    pods: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get pods --all-namespaces -o json 2>/dev/null`,
-    services: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get services --all-namespaces -o json 2>/dev/null`,
-    deployments: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get deployments --all-namespaces -o json 2>/dev/null`,
-    events: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get events --all-namespaces --sort-by='.lastTimestamp' -o json 2>/dev/null`,
+    check: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; command -v kubectl >/dev/null 2>&1 && echo "kubectl" || { command -v k3s >/dev/null 2>&1 && echo "k3s" || exit 1; }`,
+    nodes: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get nodes -o json 2>/dev/null`,
+    pods: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get pods --all-namespaces -o json 2>/dev/null`,
+    services: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get services --all-namespaces -o json 2>/dev/null`,
+    deployments: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get deployments --all-namespaces -o json 2>/dev/null`,
+    events: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get events --all-namespaces --sort-by='.lastTimestamp' -o json 2>/dev/null`,
     logs: (ns: string, pod: string, container?: string): string =>
-      `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K logs -n ${ns} ${pod}${container ? ` -c ${container}` : ''} --tail=500 -f 2>&1`,
+      `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K logs -n ${ns} ${pod}${container ? ` -c ${container}` : ''} --tail=500 -f 2>&1`,
     podDescribe: (ns: string, pod: string): string =>
-      `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K describe pod -n ${ns} ${pod} 2>/dev/null`,
-    top: `export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); ($_K top nodes --no-headers 2>/dev/null; echo '---'; $_K top pods --all-namespaces --no-headers 2>/dev/null) || echo 'metrics-server not available'`
+      `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K describe pod -n ${ns} ${pod} 2>/dev/null`,
+    top: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); ($_K top nodes --no-headers 2>/dev/null; echo '---'; $_K top pods --all-namespaces --no-headers 2>/dev/null) || echo 'metrics-server not available'`
   }
 }

@@ -6,8 +6,7 @@ import { kubernetesMonitor } from '../monitors/kubernetes-monitor'
 import { logStreamer } from '../monitors/log-streamer'
 import { sshTerminalManager } from '../ssh/ssh-terminal-manager'
 import { alertEngine } from '../alerts/alert-engine'
-import { loadData, saveData, resetData } from '../store/secure-store'
-import { markLicenseConfirmed } from '../security/license-key'
+import { loadData, saveData, resetData } from '../store/store'
 import { testSmtp } from '../alerts/channels/smtp-channel'
 import { testWhatsApp } from '../alerts/channels/whatsapp-channel'
 import { testTelegram } from '../alerts/channels/telegram-channel'
@@ -16,10 +15,7 @@ import { app } from 'electron'
 import { COMMANDS } from '../ssh/ssh-commands'
 import crypto from 'crypto'
 
-let licenseKey = ''
-let machineId = ''
 let appData: AppData
-let licenseIsNew = false
 
 function getWin(): BrowserWindow | null {
   return BrowserWindow.getAllWindows()[0] ?? null
@@ -32,19 +28,17 @@ function send(channel: string, data: unknown): void {
 function startMonitors(serverId: string): void {
   const { pollIntervals } = appData.preferences
   systemMonitor.start(serverId, pollIntervals.system)
-  dockerMonitor.start(serverId, pollIntervals.docker)
-  kubernetesMonitor.start(serverId, pollIntervals.kubernetes)
+  // Stagger docker and kubernetes starts to avoid a concurrent SSH channel burst
+  setTimeout(() => dockerMonitor.start(serverId, pollIntervals.docker), 3000)
+  kubernetesMonitor.start(serverId, pollIntervals.kubernetes, 6000)
 }
 
-export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void {
-  licenseKey = lk
-  machineId = mid
-  licenseIsNew = isNew
-  appData = loadData(licenseKey, machineId)
+export function setupIpcHandlers(): void {
+  appData = loadData()
 
   alertEngine.initialize(
     () => appData,
-    (data) => { appData = data; saveData(appData, licenseKey, machineId) }
+    (data) => { appData = data; saveData(appData) }
   )
 
   sshManager.on('status', (status: ConnectionStatus) => {
@@ -101,13 +95,13 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
   ipcMain.handle('servers:add', async (_, server: Omit<Server, 'id'>) => {
     const newServer: Server = { ...server, id: crypto.randomUUID() }
     appData.servers.push(newServer)
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return newServer
   })
 
   ipcMain.handle('servers:update', async (_, server: Server) => {
     const idx = appData.servers.findIndex((s) => s.id === server.id)
-    if (idx !== -1) { appData.servers[idx] = server; saveData(appData, licenseKey, machineId) }
+    if (idx !== -1) { appData.servers[idx] = server; saveData(appData) }
     return server
   })
 
@@ -120,7 +114,7 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
     logStreamer.stopAllForServer(serverId)
     sshTerminalManager.closeAllForServer(serverId)
     appData.servers = appData.servers.filter((s) => s.id !== serverId)
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return true
   })
 
@@ -134,7 +128,6 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
     try {
       const wasConnected = sshManager.getStatus(serverId) === 'connected'
       await sshManager.connect(server)
-      // connected event starts monitors on fresh connect; skip duplicate poll burst
       if (wasConnected) startMonitors(serverId)
       return { success: true }
     } catch (err) {
@@ -196,19 +189,19 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
   ipcMain.handle('alerts:add', async (_, rule: Omit<import('../store/types').AlertRule, 'id' | 'lastTriggeredAt' | 'consecutiveBreaches'>) => {
     const newRule = { ...rule, id: crypto.randomUUID(), lastTriggeredAt: null, consecutiveBreaches: 0 }
     appData.alertRules.push(newRule)
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return newRule
   })
 
   ipcMain.handle('alerts:update', async (_, rule: import('../store/types').AlertRule) => {
     const idx = appData.alertRules.findIndex((r) => r.id === rule.id)
-    if (idx !== -1) { appData.alertRules[idx] = rule; saveData(appData, licenseKey, machineId) }
+    if (idx !== -1) { appData.alertRules[idx] = rule; saveData(appData) }
     return rule
   })
 
   ipcMain.handle('alerts:remove', async (_, ruleId: string) => {
     appData.alertRules = appData.alertRules.filter((r) => r.id !== ruleId)
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return true
   })
 
@@ -216,7 +209,7 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
 
   ipcMain.handle('settings:save', async (_, integrations: AppData['integrations']) => {
     appData.integrations = integrations
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return true
   })
 
@@ -228,17 +221,14 @@ export function setupIpcHandlers(lk: string, mid: string, isNew: boolean): void 
 
   ipcMain.handle('preferences:save', async (_, prefs: AppData['preferences']) => {
     appData.preferences = prefs
-    saveData(appData, licenseKey, machineId)
+    saveData(appData)
     return true
   })
 
-  ipcMain.handle('app:license', () => licenseKey)
-  ipcMain.handle('app:license-info', () => ({ key: licenseKey, isNew: licenseIsNew }))
-  ipcMain.handle('app:license-confirm', () => { markLicenseConfirmed(); licenseIsNew = false; return true })
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('app:reset', async () => {
-    resetData(licenseKey, machineId)
-    appData = loadData(licenseKey, machineId)
+    resetData()
+    appData = loadData()
     return true
   })
 

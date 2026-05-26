@@ -10,8 +10,6 @@ interface AppState {
   kubernetesData: Record<string, KubernetesData>
   preferences: AppPreferences
   recentAlerts: TriggeredAlert[]
-  licenseKey: string
-  licenseIsNew: boolean
   isLoading: boolean
 }
 
@@ -24,7 +22,6 @@ type Action =
   | { type: 'SET_KUBERNETES'; data: KubernetesData }
   | { type: 'SET_PREFERENCES'; prefs: AppPreferences }
   | { type: 'ADD_ALERT'; alert: TriggeredAlert }
-  | { type: 'SET_LICENSE'; key: string; isNew: boolean }
   | { type: 'SET_LOADING'; loading: boolean }
 
 const MAX_HISTORY = 120
@@ -50,8 +47,6 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, preferences: action.prefs }
     case 'ADD_ALERT':
       return { ...state, recentAlerts: [action.alert, ...state.recentAlerts].slice(0, 50) }
-    case 'SET_LICENSE':
-      return { ...state, licenseKey: action.key, licenseIsNew: action.isNew }
     case 'SET_LOADING':
       return { ...state, isLoading: action.loading }
     default:
@@ -72,8 +67,6 @@ const initialState: AppState = {
     sidebarCollapsed: false
   },
   recentAlerts: [],
-  licenseKey: '',
-  licenseIsNew: false,
   isLoading: true
 }
 
@@ -95,12 +88,10 @@ export function AppProvider({ children }: { children: React.ReactNode }): React.
 
   useEffect(() => {
     const init = async (): Promise<void> => {
-      const [licenseKey, servers, prefs] = await Promise.all([
-        window.monitcAPI.app.getLicenseKey(),
+      const [servers, prefs] = await Promise.all([
         window.monitcAPI.servers.list() as Promise<Server[]>,
         window.monitcAPI.preferences.get() as Promise<AppPreferences>
       ])
-      dispatch({ type: 'SET_LICENSE', key: licenseKey, isNew: false })
       dispatch({ type: 'SET_SERVERS', servers })
       if (servers.length > 0) {
         dispatch({ type: 'SELECT_SERVER', serverId: servers[0].id })

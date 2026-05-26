@@ -1,8 +1,6 @@
 import { app, BrowserWindow, shell, ipcMain, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initializeLicense } from './security/license-key'
-import { getMachineId } from './security/machine-id'
 import { setupIpcHandlers } from './ipc/ipc-handlers'
 import { setupDevOpsHandlers } from './ipc/ipc-handlers-devops'
 import { sshManager } from './ssh/ssh-manager'
@@ -13,7 +11,6 @@ import { logStreamer } from './monitors/log-streamer'
 import { sshTerminalManager } from './ssh/ssh-terminal-manager'
 
 let mainWindow: BrowserWindow | null = null
-let licenseIsNew = false
 
 function getAppIcon(): Electron.NativeImage | undefined {
   const resourcesPath = is.dev
@@ -83,11 +80,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  const { key, isNew } = initializeLicense()
-  licenseIsNew = isNew
-  const mid = getMachineId()
-  setupIpcHandlers(key, mid, isNew)
-  setupDevOpsHandlers(key, mid)
+  setupIpcHandlers()
+  setupDevOpsHandlers()
 
   createWindow()
 
