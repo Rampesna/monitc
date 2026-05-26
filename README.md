@@ -22,7 +22,25 @@
 - **SSH-based monitoring** — connect to any Linux/macOS server over SSH (password or private key)
 - **Real-time metrics** — CPU, RAM, Disk, Network I/O, Load Average, Uptime with live charts
 - **Multi-server support** — monitor unlimited servers simultaneously from one dashboard
-- **Automatic reconnection** — persistent SSH sessions with exponential backoff reconnection
+- **Persistent SSH connection** — single multiplexed SSH connection per server (max 6 concurrent channels); no new connection per poll cycle
+- **Automatic reconnection** — exponential backoff with jitter (1.5s → 60s), SSH-level keepalives every 15s, active health check every 30s
+
+### 📊 Metrics History
+- **SQLite-backed history** — CPU, RAM, Disk, Network readings stored locally with timestamps
+- **7-day retention** — automatic purge of data older than 7 days
+- **Query by time range** — retrieve last 1h / 6h / 24h / 48h / 7d of metrics for any server
+
+### 📄 Report Export
+- **PDF & PNG export** — export a full server performance report for any time range
+- **Professional layout** — summary cards (avg/peak CPU & RAM), area charts, disk bar chart, network interface table, header/footer with server info
+- Two-step flow: choose time range + format → preview → download
+
+### ☁️ AWS Integration
+- **EC2 management** — list instances with state badges, start/stop/reboot, full details (security groups, IAM role, volumes)
+- **EKS management** — list clusters, describe details, node groups with scaling config, generate kubeconfig YAML
+- **CloudWatch metrics** — historical time-series for CPUUtilization, NetworkIn/Out, DiskReadOps/WriteOps
+- **Credential validation** — STS GetCallerIdentity to verify access keys before saving
+- **Security** — region whitelist (29 regions), credentials masked in UI, all API calls in main process only
 
 ### 🐳 Docker Management
 - Live container list with status, resource usage, and port mappings
@@ -39,7 +57,7 @@
 ### 💻 SSH Terminal
 - **Multi-tab terminal** — open multiple interactive SSH shell sessions simultaneously
 - **Full xterm.js terminal** — true 256-color terminal with resize support
-- **Per-server tabs** — open a terminal to any configured server with one click
+- **Server picker modal** — select any configured server from a list, with live connection status
 
 ### 🖥️ Servers Overview
 - Dedicated **Servers** page listing all configured servers as cards
@@ -96,7 +114,7 @@ Pre-built releases are available on the [GitHub Releases](../../releases) page.
 |----------|--------|--------------|
 | macOS | `.dmg` | Universal (Apple Silicon + Intel) |
 | Windows | `.exe` NSIS Installer | x64 |
-| Linux | `.AppImage` / `.deb` | x64 |
+| Linux | `.AppImage` | arm64 |
 
 ### macOS (Homebrew)
 
@@ -107,23 +125,17 @@ brew install --cask monitc
 
 ### macOS (Direct download)
 
-Download `monitc-1.0.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
+Download `monitc-1.1.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
 
 ### Windows
 
-Download `monitc-Setup-1.0.0.exe` from [Releases](../../releases) and run the installer.
+Download `monitc-Setup-1.1.0.exe` from [Releases](../../releases) and run the installer.
 
 ### Linux (AppImage)
 
 ```bash
-chmod +x monitc-1.0.0.AppImage
-./monitc-1.0.0.AppImage
-```
-
-### Linux (Debian / Ubuntu)
-
-```bash
-sudo dpkg -i monitc_1.0.0_amd64.deb
+chmod +x monitc-1.1.0-arm64.AppImage
+./monitc-1.1.0-arm64.AppImage
 ```
 
 ---
@@ -195,6 +207,26 @@ You can provide either:
 
 ---
 
+## ☁️ Connecting AWS
+
+1. Open **Settings → Cloud Providers**
+2. Click **Add AWS Account**
+3. Enter a label, Access Key ID, Secret Access Key, and region
+4. Click **Test Credentials** — validates via STS GetCallerIdentity
+5. Save — EC2 instances, EKS clusters, and CloudWatch metrics are now accessible
+
+---
+
+## 📄 Exporting Reports
+
+1. Open any **Server Dashboard**
+2. Click **Export** in the top-right
+3. Choose time range (1h / 6h / 24h / 48h / 7d) and format (PDF or PNG)
+4. Click **Preview Report** to load data
+5. Click **Download** — report is saved to your Downloads folder
+
+---
+
 ## 🔔 Setting Up Alerts
 
 1. Go to **Settings → Integrations** and configure your notification channel (SMTP / WhatsApp / Telegram)
@@ -233,14 +265,20 @@ You can provide either:
 src/
 ├── main/                   # Electron main process (Node.js)
 │   ├── store/              # Plain JSON persistence (monitc-data.json)
-│   ├── ssh/                # SSH connection pool + command definitions
-│   │   ├── ssh-manager.ts
+│   ├── ssh/                # Persistent multiplexed SSH connection pool
+│   │   ├── ssh-manager.ts          # Single Client per server, channel queue, health check
 │   │   ├── ssh-commands.ts
 │   │   ├── ssh-terminal-manager.ts
 │   │   ├── k8s-management-commands.ts
 │   │   ├── rollout-commands.ts
 │   │   └── git-commands.ts
 │   ├── monitors/           # System / Docker / Kubernetes pollers + log streamer
+│   │   └── metrics-db.ts           # SQLite history (better-sqlite3, WAL mode)
+│   ├── aws/                # AWS SDK v3 clients (EC2, EKS, CloudWatch, STS)
+│   │   ├── aws-manager.ts
+│   │   ├── ec2-commands.ts
+│   │   ├── eks-commands.ts
+│   │   └── cloudwatch-commands.ts
 │   ├── alerts/             # Alert engine + SMTP / WhatsApp / Telegram channels
 │   ├── ci/                 # GitHub & GitLab REST API clients
 │   └── ipc/                # IPC handler registration
@@ -249,8 +287,10 @@ src/
     └── src/
         ├── i18n/           # i18next + 7 locale files
         ├── context/        # AppContext (global state + IPC listeners)
-        ├── pages/          # Route-level page components (Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …)
-        └── components/     # Reusable UI components
+        ├── components/
+        │   └── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
+        ├── pages/          # Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …
+        └── hooks/          # useMetricsHistory and other custom hooks
 ```
 
 ### IPC Channel Map
@@ -260,6 +300,7 @@ src/
 | `servers:list/add/update/remove/test` | Renderer → Main | SSH server CRUD |
 | `monitor:start/stop/status` | Renderer → Main | Start/stop metric polling |
 | `metrics:update` | Main → Renderer | Live metric push |
+| `metrics:history` | Renderer → Main | SQLite history query |
 | `docker:action/inspect` | Renderer → Main | Docker container operations |
 | `kubernetes:update` | Main → Renderer | K8s state push |
 | `k8s:namespaces:*` / `k8s:secrets:*` / `k8s:serviceaccounts:*` | Renderer → Main | K8s management |
@@ -273,6 +314,10 @@ src/
 | `preferences:get/save` | Renderer → Main | App preferences |
 | `terminal:open/write/resize/close` | Renderer → Main | SSH terminal session management |
 | `terminal:data` | Main → Renderer | Live shell output stream |
+| `aws:accounts:list/add/update/remove/test` | Renderer → Main | AWS account CRUD |
+| `aws:ec2:instances:list` / `aws:ec2:instance:*` | Renderer → Main | EC2 operations |
+| `aws:eks:clusters:list` / `aws:eks:*` | Renderer → Main | EKS operations |
+| `aws:cloudwatch:ec2:metrics` | Renderer → Main | CloudWatch time-series |
 
 ---
 
@@ -311,5 +356,5 @@ MIT © [Talha Can Rampesna](https://github.com/Rampesna)
 ---
 
 <div align="center">
-  <sub>Built with Electron · React · TypeScript · TailwindCSS · node-ssh2 · xterm.js · Recharts</sub>
+  <sub>Built with Electron · React · TypeScript · TailwindCSS · node-ssh2 · xterm.js · Recharts · better-sqlite3 · AWS SDK v3</sub>
 </div>
