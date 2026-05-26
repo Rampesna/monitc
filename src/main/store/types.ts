@@ -107,8 +107,18 @@ export interface ProjectLink {
   workflowId?: string
 }
 
+export interface AwsAccount {
+  id: string
+  name: string
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
+  createdAt: string
+}
+
 export interface AppData {
   servers: Server[]
+  awsAccounts: AwsAccount[]
   integrations: {
     smtp: SmtpConfig | null
     whatsapp: WhatsAppConfig | null

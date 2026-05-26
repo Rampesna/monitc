@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupIpcHandlers } from './ipc/ipc-handlers'
 import { setupDevOpsHandlers } from './ipc/ipc-handlers-devops'
+import { registerAwsIpcHandlers } from './ipc/aws-ipc'
 import { sshManager } from './ssh/ssh-manager'
 import { systemMonitor } from './monitors/system-monitor'
 import { dockerMonitor } from './monitors/docker-monitor'
@@ -82,6 +83,7 @@ app.whenReady().then(() => {
 
   setupIpcHandlers()
   setupDevOpsHandlers()
+  registerAwsIpcHandlers()
 
   createWindow()
 

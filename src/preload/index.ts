@@ -165,6 +165,44 @@ const monitcAPI = {
       ipcRenderer.invoke('gitlab:variable:set', projectId, key, value),
     branches: (projectId: string | number): Promise<unknown> => ipcRenderer.invoke('gitlab:branches', projectId)
   },
+  aws: {
+    accounts: {
+      list: (): Promise<unknown[]> => ipcRenderer.invoke('aws:accounts:list'),
+      add: (account: unknown): Promise<unknown> => ipcRenderer.invoke('aws:accounts:add', account),
+      update: (account: unknown): Promise<unknown> => ipcRenderer.invoke('aws:accounts:update', account),
+      remove: (accountId: string): Promise<boolean> => ipcRenderer.invoke('aws:accounts:remove', accountId),
+      test: (account: unknown): Promise<{ accountId: string; arn: string; userId: string }> =>
+        ipcRenderer.invoke('aws:accounts:test', account)
+    },
+    ec2: {
+      listInstances: (accountId: string): Promise<unknown[]> =>
+        ipcRenderer.invoke('aws:ec2:instances:list', accountId),
+      startInstance: (accountId: string, instanceId: string): Promise<{ success: boolean }> =>
+        ipcRenderer.invoke('aws:ec2:instance:start', accountId, instanceId),
+      stopInstance: (accountId: string, instanceId: string): Promise<{ success: boolean }> =>
+        ipcRenderer.invoke('aws:ec2:instance:stop', accountId, instanceId),
+      rebootInstance: (accountId: string, instanceId: string): Promise<{ success: boolean }> =>
+        ipcRenderer.invoke('aws:ec2:instance:reboot', accountId, instanceId),
+      getDetails: (accountId: string, instanceId: string): Promise<unknown> =>
+        ipcRenderer.invoke('aws:ec2:instance:details', accountId, instanceId),
+      listSecurityGroups: (accountId: string): Promise<unknown[]> =>
+        ipcRenderer.invoke('aws:ec2:security-groups:list', accountId)
+    },
+    eks: {
+      listClusters: (accountId: string): Promise<unknown[]> =>
+        ipcRenderer.invoke('aws:eks:clusters:list', accountId),
+      describeCluster: (accountId: string, clusterName: string): Promise<unknown> =>
+        ipcRenderer.invoke('aws:eks:cluster:describe', accountId, clusterName),
+      listNodeGroups: (accountId: string, clusterName: string): Promise<unknown[]> =>
+        ipcRenderer.invoke('aws:eks:nodegroups:list', accountId, clusterName),
+      generateKubeconfig: (accountId: string, clusterName: string): Promise<string> =>
+        ipcRenderer.invoke('aws:eks:kubeconfig:generate', accountId, clusterName)
+    },
+    cloudwatch: {
+      getEC2Metrics: (accountId: string, instanceId: string, metricName: string, hours: number): Promise<unknown[]> =>
+        ipcRenderer.invoke('aws:cloudwatch:ec2:metrics', accountId, instanceId, metricName, hours)
+    }
+  },
   terminal: {
     open: (serverId: string, cols: number, rows: number): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
       ipcRenderer.invoke('terminal:open', serverId, cols, rows),

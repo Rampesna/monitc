@@ -7,6 +7,7 @@ const DATA_FILE = 'monitc-data.json'
 
 const DEFAULT_DATA: AppData = {
   servers: [],
+  awsAccounts: [],
   integrations: {
     smtp: null,
     whatsapp: null,

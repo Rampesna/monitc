@@ -2,6 +2,103 @@
 
 declare const __APP_VERSION__: string | undefined
 
+// ── AWS types ────────────────────────────────────────────────────────────────
+
+interface AwsAccountInput {
+  name: string
+  accessKeyId: string
+  secretAccessKey: string
+  region: string
+}
+
+interface AwsAccountFull extends AwsAccountInput {
+  id: string
+  createdAt: string
+}
+
+interface AwsAccountDisplay {
+  id: string
+  name: string
+  accessKeyId: string     // masked
+  secretAccessKey: string // masked
+  region: string
+  createdAt: string
+}
+
+interface EC2InstanceSummary {
+  instanceId: string
+  name: string
+  state: string
+  instanceType: string
+  publicIp: string | null
+  privateIp: string | null
+  availabilityZone: string
+  launchTime: string | null
+  platform: string
+  vpcId: string | null
+}
+
+interface EC2InstanceDetails extends EC2InstanceSummary {
+  securityGroups: { id: string; name: string }[]
+  iamRole: string | null
+  volumes: { id: string; device: string; size: number; type: string }[]
+  subnetId: string | null
+  keyName: string | null
+  architecture: string
+  monitoring: string
+  tags: Record<string, string>
+}
+
+interface SecurityGroupSummary {
+  groupId: string
+  groupName: string
+  description: string
+  vpcId: string | null
+  inboundRuleCount: number
+  outboundRuleCount: number
+}
+
+interface EKSClusterSummary {
+  name: string
+  status: string
+  version: string
+  endpoint: string
+  roleArn: string
+  platformVersion: string
+  createdAt: string | null
+}
+
+interface EKSClusterDetails extends EKSClusterSummary {
+  certificateAuthority: string
+  vpcId: string | null
+  subnetIds: string[]
+  securityGroupIds: string[]
+  publicAccess: boolean
+  privateAccess: boolean
+  serviceIpv4Cidr: string | null
+  tags: Record<string, string>
+}
+
+interface EKSNodeGroup {
+  name: string
+  status: string
+  instanceTypes: string[]
+  desiredSize: number
+  minSize: number
+  maxSize: number
+  capacityType: string
+  amiType: string
+  diskSize: number
+  labels: Record<string, string>
+}
+
+interface CloudWatchDataPoint {
+  timestamp: number
+  value: number
+}
+
+// ── Metrics types ────────────────────────────────────────────────────────────
+
 interface MetricsHistoryPoint {
   timestamp: number
   cpu: { percent: number; loadAvg: [number, number, number] }
@@ -68,6 +165,32 @@ interface MonitcAPI {
     minimize: () => void
     maximize: () => void
     close: () => void
+  }
+  aws: {
+    accounts: {
+      list: () => Promise<AwsAccountDisplay[]>
+      add: (account: AwsAccountInput) => Promise<AwsAccountDisplay>
+      update: (account: AwsAccountFull) => Promise<AwsAccountDisplay>
+      remove: (accountId: string) => Promise<boolean>
+      test: (account: AwsAccountInput) => Promise<{ accountId: string; arn: string; userId: string }>
+    }
+    ec2: {
+      listInstances: (accountId: string) => Promise<EC2InstanceSummary[]>
+      startInstance: (accountId: string, instanceId: string) => Promise<{ success: boolean }>
+      stopInstance: (accountId: string, instanceId: string) => Promise<{ success: boolean }>
+      rebootInstance: (accountId: string, instanceId: string) => Promise<{ success: boolean }>
+      getDetails: (accountId: string, instanceId: string) => Promise<EC2InstanceDetails>
+      listSecurityGroups: (accountId: string) => Promise<SecurityGroupSummary[]>
+    }
+    eks: {
+      listClusters: (accountId: string) => Promise<EKSClusterSummary[]>
+      describeCluster: (accountId: string, clusterName: string) => Promise<EKSClusterDetails>
+      listNodeGroups: (accountId: string, clusterName: string) => Promise<EKSNodeGroup[]>
+      generateKubeconfig: (accountId: string, clusterName: string) => Promise<string>
+    }
+    cloudwatch: {
+      getEC2Metrics: (accountId: string, instanceId: string, metricName: string, hours: number) => Promise<CloudWatchDataPoint[]>
+    }
   }
   projects: {
     list: () => Promise<unknown[]>
