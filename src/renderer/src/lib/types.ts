@@ -331,7 +331,7 @@ export interface KubernetesData {
 
 export interface ConnectionStatus {
   serverId: string
-  status: 'connected' | 'connecting' | 'disconnected' | 'error'
+  status: 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error'
   error?: string
 }
 
@@ -346,4 +346,4 @@ export interface TriggeredAlert {
   message: string
 }
 
-export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'error'
+export type ConnectionState = 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'error'

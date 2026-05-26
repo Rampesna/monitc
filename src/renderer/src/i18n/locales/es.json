@@ -391,6 +391,7 @@
     "connected": "Conectado",
     "disconnected": "Desconectado",
     "connecting": "Conectando",
+    "reconnecting": "Reconectando",
     "error": "Error de conexión"
   },
   "terminal": {

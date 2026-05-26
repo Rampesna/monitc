@@ -395,6 +395,7 @@
     "connected": "Bağlı",
     "disconnected": "Bağlı Değil",
     "connecting": "Bağlanıyor",
+    "reconnecting": "Yeniden Bağlanıyor",
     "error": "Bağlantı Hatası"
   },
   "terminal": {

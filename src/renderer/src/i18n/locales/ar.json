@@ -391,6 +391,7 @@
     "connected": "متصل",
     "disconnected": "غير متصل",
     "connecting": "جاري الاتصال",
+    "reconnecting": "إعادة الاتصال",
     "error": "خطأ في الاتصال"
   },
   "terminal": {

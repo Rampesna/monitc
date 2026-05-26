@@ -405,6 +405,7 @@
     "connected": "Connected",
     "disconnected": "Disconnected",
     "connecting": "Connecting",
+    "reconnecting": "Reconnecting",
     "error": "Connection Error"
   }
 }

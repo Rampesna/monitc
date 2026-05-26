@@ -10,28 +10,31 @@ interface StatusDotProps {
 }
 
 const colorMap: Record<ConnectionState, string> = {
-  connected: 'bg-green-500',
-  connecting: 'bg-amber-400 animate-pulse-dot',
+  connected:    'bg-green-500',
+  connecting:   'bg-amber-400 animate-pulse-dot',
+  reconnecting: 'bg-orange-400 animate-pulse-dot',
   disconnected: 'bg-slate-500',
-  error: 'bg-red-500'
+  error:        'bg-red-500'
 }
 
 const sizeMap = { sm: 'w-2 h-2', md: 'w-2.5 h-2.5', lg: 'w-3 h-3' }
 const textMap: Record<ConnectionState, string> = {
-  connected: 'text-green-400',
-  connecting: 'text-amber-400',
+  connected:    'text-green-400',
+  connecting:   'text-amber-400',
+  reconnecting: 'text-orange-400',
   disconnected: 'text-slate-400',
-  error: 'text-red-400'
+  error:        'text-red-400'
 }
 
 export function StatusDot({ status, size = 'md', showLabel = false, className = '' }: StatusDotProps): React.ReactElement {
   const { t } = useTranslation()
 
   const labelMap: Record<ConnectionState, string> = {
-    connected: t('connection.connected'),
-    connecting: t('connection.connecting'),
+    connected:    t('connection.connected'),
+    connecting:   t('connection.connecting'),
+    reconnecting: t('connection.reconnecting'),
     disconnected: t('connection.disconnected'),
-    error: t('connection.error')
+    error:        t('connection.error')
   }
 
   return (
