@@ -103,6 +103,17 @@ const monitcAPI = {
     maximize: (): void => ipcRenderer.send('window:maximize'),
     close: (): void => ipcRenderer.send('window:close')
   },
+  updater: {
+    getStatus: (): Promise<unknown> => ipcRenderer.invoke('updater:getStatus'),
+    check: (): Promise<unknown> => ipcRenderer.invoke('updater:check'),
+    download: (): Promise<boolean> => ipcRenderer.invoke('updater:download'),
+    install: (): Promise<boolean> => ipcRenderer.invoke('updater:install'),
+    onStatus: (cb: (state: unknown) => void): (() => void) => {
+      const handler = (_: unknown, data: unknown): void => cb(data)
+      ipcRenderer.on('updater:status', handler)
+      return () => ipcRenderer.removeListener('updater:status', handler)
+    }
+  },
   projects: {
     list: (): Promise<unknown[]> => ipcRenderer.invoke('projects:list'),
     add: (link: unknown): Promise<unknown> => ipcRenderer.invoke('projects:add', link),
@@ -206,6 +217,8 @@ const monitcAPI = {
   terminal: {
     open: (serverId: string, cols: number, rows: number): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
       ipcRenderer.invoke('terminal:open', serverId, cols, rows),
+    openLocal: (cols: number, rows: number): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+      ipcRenderer.invoke('terminal:openLocal', cols, rows),
     write: (sessionId: string, data: string): void => ipcRenderer.send('terminal:write', sessionId, data),
     resize: (sessionId: string, cols: number, rows: number): void => {
       ipcRenderer.send('terminal:resize', sessionId, cols, rows)

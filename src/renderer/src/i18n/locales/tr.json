@@ -398,15 +398,34 @@
     "reconnecting": "Yeniden Bağlanıyor",
     "error": "Bağlantı Hatası"
   },
+  "updater": {
+    "availableTitle": "Yeni güncelleme (v{{version}})",
+    "availableDesc": "Şu an v{{current}} kullanıyorsun. v{{latest}} yayında. Güncellemek ister misin?",
+    "updateNow": "Güncelle",
+    "later": "Sonra",
+    "downloadingTitle": "v{{version}} indiriliyor…",
+    "downloadingDesc": "%{{percent}} tamamlandı",
+    "downloading": "İndiriliyor…",
+    "readyTitle": "Güncelleme hazır (v{{version}})",
+    "readyDesc": "Kurulumu tamamlamak için uygulamayı yeniden başlat.",
+    "restart": "Yeniden başlat",
+    "errorTitle": "Güncelleme başarısız",
+    "errorDesc": "Güncelleme kontrol edilemedi veya indirilemedi.",
+    "retry": "Tekrar dene"
+  },
   "terminal": {
-    "title": "SSH Terminal",
-    "subtitle": "SSH üzerinden tam interaktif shell",
+    "title": "Terminal",
+    "subtitle": "Yerel shell veya sunucularınızda SSH oturumu",
     "newSession": "+ Yeni Oturum",
     "reconnect": "Yeniden Bağlan",
-    "noServers": "SSH terminali için Ayarlar'dan sunucu ekleyin.",
+    "noServers": "SSH için Ayarlar'dan sunucu ekleyin.",
     "empty": "Açık terminal oturumu yok.",
     "connectFirst": "İlk sunucuya bağlan",
-    "selectServer": "Sunucu Seç"
+    "selectServer": "Sunucu Seç",
+    "selectSession": "Yeni Terminal Oturumu",
+    "localLabel": "Yerel Terminal",
+    "localDesc": "Bu bilgisayardaki shell",
+    "sshServers": "SSH Sunucuları"
   },
   "export": {
     "button": "Dışa Aktar",

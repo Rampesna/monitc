@@ -394,15 +394,34 @@
     "reconnecting": "إعادة الاتصال",
     "error": "خطأ في الاتصال"
   },
+  "updater": {
+    "availableTitle": "تحديث متاح (v{{version}})",
+    "availableDesc": "أنت تستخدم v{{current}}. الإصدار v{{latest}} متاح. هل تريد التحديث؟",
+    "updateNow": "تحديث الآن",
+    "later": "لاحقاً",
+    "downloadingTitle": "جاري تنزيل v{{version}}…",
+    "downloadingDesc": "اكتمل {{percent}}%",
+    "downloading": "جاري التنزيل…",
+    "readyTitle": "التحديث جاهز (v{{version}})",
+    "readyDesc": "أعد تشغيل التطبيق لإكمال التثبيت.",
+    "restart": "إعادة التشغيل",
+    "errorTitle": "فشل التحديث",
+    "errorDesc": "تعذر التحقق من التحديث أو تنزيله.",
+    "retry": "إعادة المحاولة"
+  },
   "terminal": {
-    "title": "SSH Terminal",
-    "subtitle": "Full interactive shell over SSH",
+    "title": "Terminal",
+    "subtitle": "Shell محلي أو جلسات SSH على خوادمك",
     "newSession": "+ New Session",
     "reconnect": "Reconnect",
-    "noServers": "Add a server in Settings to open an SSH terminal.",
+    "noServers": "لا توجد خوادم. أضف خادماً من الإعدادات للوصول عبر SSH.",
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
-    "selectServer": "Select a Server"
+    "selectServer": "Select a Server",
+    "selectSession": "جلسة طرفية جديدة",
+    "localLabel": "طرفية محلية",
+    "localDesc": "Shell على هذا الجهاز",
+    "sshServers": "خوادم SSH"
   },
   "export": {
     "button": "تصدير",

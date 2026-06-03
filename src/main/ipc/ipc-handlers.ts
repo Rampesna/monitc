@@ -5,6 +5,7 @@ import { dockerMonitor } from '../monitors/docker-monitor'
 import { kubernetesMonitor } from '../monitors/kubernetes-monitor'
 import { logStreamer } from '../monitors/log-streamer'
 import { sshTerminalManager } from '../ssh/ssh-terminal-manager'
+import { localTerminalManager } from '../terminal/local-terminal-manager'
 import { alertEngine } from '../alerts/alert-engine'
 import { loadData, saveData, resetData } from '../store/store'
 import { metricsDb } from '../monitors/metrics-db'
@@ -66,6 +67,8 @@ export function setupIpcHandlers(): void {
 
   sshTerminalManager.on('data', ({ sessionId, data }) => send(`terminal:data:${sessionId}`, data))
   sshTerminalManager.on('close', ({ sessionId }) => send(`terminal:close:${sessionId}`, null))
+  localTerminalManager.on('data', ({ sessionId, data }) => send(`terminal:data:${sessionId}`, data))
+  localTerminalManager.on('close', ({ sessionId }) => send(`terminal:close:${sessionId}`, null))
 
   ipcMain.handle('terminal:open', async (_, serverId: string, cols: number, rows: number) => {
     const server = appData.servers.find((s) => s.id === serverId)
@@ -78,16 +81,37 @@ export function setupIpcHandlers(): void {
     }
   })
 
+  ipcMain.handle('terminal:openLocal', async (_, cols: number, rows: number) => {
+    try {
+      const sessionId = localTerminalManager.open(cols, rows)
+      return { success: true, sessionId }
+    } catch (err) {
+      return { success: false, error: (err as Error).message }
+    }
+  })
+
   ipcMain.on('terminal:write', (_, sessionId: string, data: string) => {
-    sshTerminalManager.write(sessionId, data)
+    if (localTerminalManager.has(sessionId)) {
+      localTerminalManager.write(sessionId, data)
+    } else {
+      sshTerminalManager.write(sessionId, data)
+    }
   })
 
   ipcMain.on('terminal:resize', (_, sessionId: string, cols: number, rows: number) => {
-    sshTerminalManager.resize(sessionId, cols, rows)
+    if (localTerminalManager.has(sessionId)) {
+      localTerminalManager.resize(sessionId, cols, rows)
+    } else {
+      sshTerminalManager.resize(sessionId, cols, rows)
+    }
   })
 
   ipcMain.handle('terminal:close', async (_, sessionId: string) => {
-    sshTerminalManager.close(sessionId)
+    if (localTerminalManager.has(sessionId)) {
+      localTerminalManager.close(sessionId)
+    } else {
+      sshTerminalManager.close(sessionId)
+    }
     return true
   })
 

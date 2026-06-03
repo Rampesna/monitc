@@ -1,6 +1,6 @@
 {
   "name": "monitc",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Cross-platform server monitoring desktop application",
   "main": "./out/main/index.js",
   "author": {
@@ -27,11 +27,13 @@
     "@xterm/addon-search": "^0.15.0",
     "@xterm/xterm": "^5.5.0",
     "better-sqlite3": "^12.10.0",
+    "electron-updater": "^6.3.9",
     "html2canvas": "^1.4.1",
     "i18next": "^26.2.0",
     "jspdf": "^4.2.1",
     "libsodium-wrappers": "^0.8.4",
     "lucide-react": "^0.513.0",
+    "node-pty": "^1.0.0",
     "nodemailer": "^6.9.16",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -72,7 +74,8 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "node_modules/better-sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/node-pty/**/*"
     ],
     "mac": {
       "target": [
@@ -110,6 +113,13 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Rampesna",
+        "repo": "monitc"
+      }
+    ]
   }
 }

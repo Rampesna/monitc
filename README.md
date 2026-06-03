@@ -110,6 +110,8 @@
 
 Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
+**In-app updates:** Packaged builds check GitHub Releases for newer versions every 4 hours. When an update is available, a persistent banner appears in the top-right corner — click **Update now** to download and restart. Releases must include `latest*.yml` and `.blockmap` files (generated automatically by `electron-builder` in CI).
+
 | Platform | Format | Architecture |
 |----------|--------|--------------|
 | macOS | `.dmg` | Universal (Apple Silicon + Intel) |
@@ -125,17 +127,17 @@ brew install --cask monitc
 
 ### macOS (Direct download)
 
-Download `monitc-1.1.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
+Download `monitc-1.2.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
 
 ### Windows
 
-Download `monitc-Setup-1.1.0.exe` from [Releases](../../releases) and run the installer.
+Download `monitc-Setup-1.2.0.exe` from [Releases](../../releases) and run the installer.
 
 ### Linux (AppImage)
 
 ```bash
-chmod +x monitc-1.1.0-arm64.AppImage
-./monitc-1.1.0-arm64.AppImage
+chmod +x monitc-1.2.0-arm64.AppImage
+./monitc-1.2.0-arm64.AppImage
 ```
 
 ---

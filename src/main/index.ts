@@ -10,6 +10,9 @@ import { dockerMonitor } from './monitors/docker-monitor'
 import { kubernetesMonitor } from './monitors/kubernetes-monitor'
 import { logStreamer } from './monitors/log-streamer'
 import { sshTerminalManager } from './ssh/ssh-terminal-manager'
+import { localTerminalManager } from './terminal/local-terminal-manager'
+import { initAppUpdater, stopAppUpdater } from './updater/app-updater'
+import { registerUpdaterIpcHandlers } from './ipc/updater-ipc'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -51,6 +54,9 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+    if (mainWindow) {
+      initAppUpdater(mainWindow, app.getVersion())
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -84,6 +90,7 @@ app.whenReady().then(() => {
   setupIpcHandlers()
   setupDevOpsHandlers()
   registerAwsIpcHandlers()
+  registerUpdaterIpcHandlers()
 
   createWindow()
 
@@ -97,11 +104,13 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  stopAppUpdater()
   systemMonitor.stopAll()
   dockerMonitor.stopAll()
   kubernetesMonitor.stopAll()
   logStreamer.stopAll()
   sshTerminalManager.stopAll()
+  localTerminalManager.stopAll()
   sshManager.disconnectAll()
 })
 

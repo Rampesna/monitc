@@ -1,16 +1,19 @@
 import React, { useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { TerminalSquare, Plus, X, RefreshCw, Server as ServerIcon } from 'lucide-react'
+import { TerminalSquare, Plus, X, RefreshCw, Server as ServerIcon, Laptop } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Button } from '../components/common/Button'
 import { SSHTerminal } from '../components/terminal/SSHTerminal'
 import { StatusDot } from '../components/common/StatusDot'
 import type { Server } from '../lib/types'
 
+type TerminalKind = 'ssh' | 'local'
+
 interface TerminalTab {
   id: string
   label: string
-  serverId: string
+  kind: TerminalKind
+  serverId?: string
   sessionId: string | null
   connecting: boolean
   error?: string
@@ -21,23 +24,22 @@ export function TerminalPage(): React.ReactElement {
   const { state } = useApp()
   const [tabs, setTabs] = useState<TerminalTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
-  const [showServerPicker, setShowServerPicker] = useState(false)
+  const [showSessionPicker, setShowSessionPicker] = useState(false)
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
 
-  const openServerPicker = (): void => setShowServerPicker(true)
+  const openSessionPicker = (): void => setShowSessionPicker(true)
 
-  const connectTab = useCallback(async (tabId: string, server: Server): Promise<void> => {
+  const connectTab = useCallback(async (tabId: string, kind: TerminalKind, server?: Server): Promise<void> => {
     setTabs((prev) => prev.map((tab) =>
       tab.id === tabId ? { ...tab, connecting: true, error: undefined } : tab
     ))
 
     try {
-      const res = await window.monitcAPI.terminal.open(server.id, 120, 32) as {
-        success: boolean
-        sessionId?: string
-        error?: string
-      }
+      const res = kind === 'local'
+        ? await window.monitcAPI.terminal.openLocal(120, 32) as { success: boolean; sessionId?: string; error?: string }
+        : await window.monitcAPI.terminal.open(server!.id, 120, 32) as { success: boolean; sessionId?: string; error?: string }
+
       if (!res.success || !res.sessionId) {
         setTabs((prev) => prev.map((tab) =>
           tab.id === tabId ? { ...tab, connecting: false, sessionId: null, error: res.error } : tab
@@ -54,19 +56,35 @@ export function TerminalPage(): React.ReactElement {
     }
   }, [])
 
-  const addTab = (server: Server): void => {
-    setShowServerPicker(false)
+  const addSshTab = (server: Server): void => {
+    setShowSessionPicker(false)
     const tabId = crypto.randomUUID()
     const tab: TerminalTab = {
       id: tabId,
       label: server.name,
+      kind: 'ssh',
       serverId: server.id,
       sessionId: null,
       connecting: true
     }
     setTabs((prev) => [...prev, tab])
     setActiveTabId(tabId)
-    connectTab(tabId, server)
+    connectTab(tabId, 'ssh', server)
+  }
+
+  const addLocalTab = (): void => {
+    setShowSessionPicker(false)
+    const tabId = crypto.randomUUID()
+    const tab: TerminalTab = {
+      id: tabId,
+      label: t('terminal.localLabel'),
+      kind: 'local',
+      sessionId: null,
+      connecting: true
+    }
+    setTabs((prev) => [...prev, tab])
+    setActiveTabId(tabId)
+    connectTab(tabId, 'local')
   }
 
   const closeTab = async (tabId: string): Promise<void> => {
@@ -81,15 +99,18 @@ export function TerminalPage(): React.ReactElement {
 
   const reconnectTab = (): void => {
     if (!activeTab) return
-    const server = state.servers.find((s) => s.id === activeTab.serverId)
-    if (!server) return
     if (activeTab.sessionId) {
       window.monitcAPI.terminal.close(activeTab.sessionId).catch(() => {})
     }
     setTabs((prev) => prev.map((tab) =>
       tab.id === activeTab.id ? { ...tab, sessionId: null, error: undefined } : tab
     ))
-    connectTab(activeTab.id, server)
+    if (activeTab.kind === 'local') {
+      connectTab(activeTab.id, 'local')
+      return
+    }
+    const server = state.servers.find((s) => s.id === activeTab.serverId)
+    if (server) connectTab(activeTab.id, 'ssh', server)
   }
 
   return (
@@ -108,77 +129,67 @@ export function TerminalPage(): React.ReactElement {
               {t('terminal.reconnect')}
             </Button>
           )}
-          {state.servers.length > 0 && (
-            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openServerPicker}>
-              {t('terminal.newSession')}
-            </Button>
-          )}
+          <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openSessionPicker}>
+            {t('terminal.newSession')}
+          </Button>
         </div>
       </div>
 
-      {state.servers.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">
-          {t('terminal.noServers')}
+      {tabs.length > 0 && (
+        <div className="flex gap-1 overflow-x-auto flex-shrink-0">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTabId(tab.id)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-medium border-b-2 transition-colors ${
+                activeTabId === tab.id
+                  ? 'bg-[#12121a] border-indigo-500 text-indigo-300'
+                  : 'border-transparent text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tab.kind === 'local' ? <Laptop size={12} /> : null}
+              <span className={`w-1.5 h-1.5 rounded-full ${tab.sessionId ? 'bg-green-400' : tab.connecting ? 'bg-amber-400 animate-pulse' : 'bg-red-400'}`} />
+              {tab.label}
+              <X
+                size={12}
+                className="opacity-50 hover:opacity-100"
+                onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
+              />
+            </button>
+          ))}
         </div>
-      ) : (
-        <>
-          {tabs.length > 0 && (
-            <div className="flex gap-1 overflow-x-auto flex-shrink-0">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTabId(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-t-lg text-xs font-medium border-b-2 transition-colors ${
-                    activeTabId === tab.id
-                      ? 'bg-[#12121a] border-indigo-500 text-indigo-300'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${tab.sessionId ? 'bg-green-400' : tab.connecting ? 'bg-amber-400 animate-pulse' : 'bg-red-400'}`} />
-                  {tab.label}
-                  <X
-                    size={12}
-                    className="opacity-50 hover:opacity-100"
-                    onClick={(e) => { e.stopPropagation(); closeTab(tab.id) }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="flex-1 min-h-0 bg-[#0a0a0f] border border-[#1e1e2e] rounded-xl overflow-hidden relative">
-            {tabs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
-                <TerminalSquare size={32} className="opacity-30" />
-                <p className="text-sm">{t('terminal.empty')}</p>
-                <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openServerPicker}>
-                  {t('terminal.newSession')}
-                </Button>
-              </div>
-            ) : (
-              <>
-                {activeTab?.connecting && (
-                  <div className="absolute top-3 right-3 z-10 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
-                    {t('common.connecting')}
-                  </div>
-                )}
-                {activeTab?.error && (
-                  <div className="absolute top-3 left-3 right-3 z-10 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
-                    {activeTab.error}
-                  </div>
-                )}
-                <SSHTerminal sessionId={activeTab?.sessionId ?? null} />
-              </>
-            )}
-          </div>
-        </>
       )}
 
-      {/* Server picker modal */}
-      {showServerPicker && (
+      <div className="flex-1 min-h-0 bg-[#0a0a0f] border border-[#1e1e2e] rounded-xl overflow-hidden relative">
+        {tabs.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
+            <TerminalSquare size={32} className="opacity-30" />
+            <p className="text-sm">{t('terminal.empty')}</p>
+            <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={openSessionPicker}>
+              {t('terminal.newSession')}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {activeTab?.connecting && (
+              <div className="absolute top-3 right-3 z-10 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                {t('common.connecting')}
+              </div>
+            )}
+            {activeTab?.error && (
+              <div className="absolute top-3 left-3 right-3 z-10 text-xs text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-2 rounded-lg">
+                {activeTab.error}
+              </div>
+            )}
+            <SSHTerminal sessionId={activeTab?.sessionId ?? null} />
+          </>
+        )}
+      </div>
+
+      {showSessionPicker && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setShowServerPicker(false)}
+          onClick={() => setShowSessionPicker(false)}
         >
           <div
             className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
@@ -187,36 +198,55 @@ export function TerminalPage(): React.ReactElement {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
               <div className="flex items-center gap-2.5">
                 <TerminalSquare size={16} className="text-indigo-400" />
-                <span className="text-sm font-semibold text-slate-200">{t('terminal.selectServer')}</span>
+                <span className="text-sm font-semibold text-slate-200">{t('terminal.selectSession')}</span>
               </div>
               <button
-                onClick={() => setShowServerPicker(false)}
+                onClick={() => setShowSessionPicker(false)}
                 className="text-slate-500 hover:text-slate-300 transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
-            <div className="py-2 max-h-72 overflow-y-auto">
-              {state.servers.map((server) => {
-                const connStatus = state.connectionStatuses[server.id] ?? 'disconnected'
-                return (
-                  <button
-                    key={server.id}
-                    onClick={() => addTab(server)}
-                    className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors text-left"
-                  >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex-shrink-0">
-                      <ServerIcon size={14} className="text-indigo-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-slate-200 truncate">{server.name}</div>
-                      <div className="text-xs text-slate-500 font-mono truncate">{server.host}:{server.port}</div>
-                    </div>
-                    <StatusDot status={connStatus} size="sm" showLabel />
-                  </button>
-                )
-              })}
-            </div>
+
+            <button
+              onClick={addLocalTab}
+              className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-white/5 transition-colors text-left border-b border-[#1e1e2e]"
+            >
+              <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex-shrink-0">
+                <Laptop size={14} className="text-emerald-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-200">{t('terminal.localLabel')}</div>
+                <div className="text-xs text-slate-500">{t('terminal.localDesc')}</div>
+              </div>
+            </button>
+
+            {state.servers.length > 0 ? (
+              <div className="py-2 max-h-72 overflow-y-auto">
+                <p className="px-5 py-1.5 text-[10px] uppercase tracking-wider text-slate-600 font-medium">{t('terminal.sshServers')}</p>
+                {state.servers.map((server) => {
+                  const connStatus = state.connectionStatuses[server.id] ?? 'disconnected'
+                  return (
+                    <button
+                      key={server.id}
+                      onClick={() => addSshTab(server)}
+                      className="w-full flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex-shrink-0">
+                        <ServerIcon size={14} className="text-indigo-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-200 truncate">{server.name}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{server.host}:{server.port}</div>
+                      </div>
+                      <StatusDot status={connStatus} size="sm" showLabel />
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="px-5 py-4 text-xs text-slate-500">{t('terminal.noServers')}</p>
+            )}
           </div>
         </div>
       )}

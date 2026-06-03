@@ -9,7 +9,7 @@ import type { AppPreferences } from '../../lib/types'
 
 export function GeneralTab(): React.ReactElement {
   const { t } = useTranslation()
-  const { dispatch } = useApp()
+  const { state, dispatch } = useApp()
   const [prefs, setPrefs] = useState<AppPreferences>({ ...state.preferences })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

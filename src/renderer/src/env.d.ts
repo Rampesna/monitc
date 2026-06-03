@@ -166,6 +166,34 @@ interface MonitcAPI {
     maximize: () => void
     close: () => void
   }
+  updater: {
+    getStatus: () => Promise<{
+      status: string
+      currentVersion: string
+      version?: string
+      percent?: number
+      message?: string
+      releaseNotes?: string
+    }>
+    check: () => Promise<{
+      status: string
+      currentVersion: string
+      version?: string
+      percent?: number
+      message?: string
+      releaseNotes?: string
+    }>
+    download: () => Promise<boolean>
+    install: () => Promise<boolean>
+    onStatus: (cb: (state: {
+      status: string
+      currentVersion: string
+      version?: string
+      percent?: number
+      message?: string
+      releaseNotes?: string
+    }) => void) => () => void
+  }
   aws: {
     accounts: {
       list: () => Promise<AwsAccountDisplay[]>
@@ -249,6 +277,7 @@ interface MonitcAPI {
   }
   terminal: {
     open: (serverId: string, cols: number, rows: number) => Promise<{ success: boolean; sessionId?: string; error?: string }>
+    openLocal: (cols: number, rows: number) => Promise<{ success: boolean; sessionId?: string; error?: string }>
     write: (sessionId: string, data: string) => void
     resize: (sessionId: string, cols: number, rows: number) => void
     close: (sessionId: string) => Promise<boolean>

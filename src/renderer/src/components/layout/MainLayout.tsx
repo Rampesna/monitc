@@ -2,10 +2,12 @@ import React from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { UpdateToast } from '../updater/UpdateToast'
 
 export function MainLayout(): React.ReactElement {
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#0a0a0f]">
+      <UpdateToast />
       <Header />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />

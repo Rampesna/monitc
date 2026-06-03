@@ -394,15 +394,34 @@
     "reconnecting": "Riconnessione",
     "error": "Errore di connessione"
   },
+  "updater": {
+    "availableTitle": "Aggiornamento disponibile (v{{version}})",
+    "availableDesc": "Stai usando v{{current}}. La versione v{{latest}} è disponibile. Aggiornare?",
+    "updateNow": "Aggiorna",
+    "later": "Più tardi",
+    "downloadingTitle": "Download di v{{version}}…",
+    "downloadingDesc": "{{percent}}% completato",
+    "downloading": "Download in corso…",
+    "readyTitle": "Aggiornamento pronto (v{{version}})",
+    "readyDesc": "Riavvia l'app per completare l'installazione.",
+    "restart": "Riavvia",
+    "errorTitle": "Aggiornamento non riuscito",
+    "errorDesc": "Impossibile verificare o scaricare l'aggiornamento.",
+    "retry": "Riprova"
+  },
   "terminal": {
-    "title": "SSH Terminal",
-    "subtitle": "Full interactive shell over SSH",
+    "title": "Terminal",
+    "subtitle": "Shell locale o sessioni SSH sui tuoi server",
     "newSession": "+ New Session",
     "reconnect": "Reconnect",
-    "noServers": "Add a server in Settings to open an SSH terminal.",
+    "noServers": "Nessun server configurato. Aggiungine uno nelle impostazioni.",
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
-    "selectServer": "Select a Server"
+    "selectServer": "Select a Server",
+    "selectSession": "Nuova sessione terminale",
+    "localLabel": "Terminale locale",
+    "localDesc": "Shell su questo computer",
+    "sshServers": "Server SSH"
   },
   "export": {
     "button": "Esporta",

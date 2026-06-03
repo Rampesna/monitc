@@ -392,14 +392,18 @@
     "add": "Add Rule"
   },
   "terminal": {
-    "title": "SSH Terminal",
-    "subtitle": "Full interactive shell over SSH",
+    "title": "Terminal",
+    "subtitle": "Local shell or SSH sessions on your servers",
     "newSession": "+ New Session",
     "reconnect": "Reconnect",
-    "noServers": "Add a server in Settings to open an SSH terminal.",
+    "noServers": "No servers configured. Add one in Settings for SSH access.",
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
-    "selectServer": "Select a Server"
+    "selectServer": "Select a Server",
+    "selectSession": "New Terminal Session",
+    "localLabel": "Local Terminal",
+    "localDesc": "Shell on this computer",
+    "sshServers": "SSH Servers"
   },
   "connection": {
     "connected": "Connected",
@@ -407,6 +411,21 @@
     "connecting": "Connecting",
     "reconnecting": "Reconnecting",
     "error": "Connection Error"
+  },
+  "updater": {
+    "availableTitle": "Update available (v{{version}})",
+    "availableDesc": "You are on v{{current}}. Version v{{latest}} is available. Would you like to update?",
+    "updateNow": "Update now",
+    "later": "Later",
+    "downloadingTitle": "Downloading v{{version}}…",
+    "downloadingDesc": "{{percent}}% complete",
+    "downloading": "Downloading…",
+    "readyTitle": "Update ready (v{{version}})",
+    "readyDesc": "Restart the app to finish installing the update.",
+    "restart": "Restart now",
+    "errorTitle": "Update failed",
+    "errorDesc": "Could not check or download the update.",
+    "retry": "Try again"
   },
   "export": {
     "button": "Export",

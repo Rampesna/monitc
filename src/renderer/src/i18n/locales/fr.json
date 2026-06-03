@@ -394,15 +394,34 @@
     "reconnecting": "Reconnexion",
     "error": "Erreur de connexion"
   },
+  "updater": {
+    "availableTitle": "Mise à jour disponible (v{{version}})",
+    "availableDesc": "Vous utilisez v{{current}}. La version v{{latest}} est disponible. Mettre à jour ?",
+    "updateNow": "Mettre à jour",
+    "later": "Plus tard",
+    "downloadingTitle": "Téléchargement de v{{version}}…",
+    "downloadingDesc": "{{percent}}% terminé",
+    "downloading": "Téléchargement…",
+    "readyTitle": "Mise à jour prête (v{{version}})",
+    "readyDesc": "Redémarrez l'application pour terminer l'installation.",
+    "restart": "Redémarrer",
+    "errorTitle": "Échec de la mise à jour",
+    "errorDesc": "Impossible de vérifier ou télécharger la mise à jour.",
+    "retry": "Réessayer"
+  },
   "terminal": {
-    "title": "SSH Terminal",
-    "subtitle": "Full interactive shell over SSH",
+    "title": "Terminal",
+    "subtitle": "Shell local ou sessions SSH sur vos serveurs",
     "newSession": "+ New Session",
     "reconnect": "Reconnect",
-    "noServers": "Add a server in Settings to open an SSH terminal.",
+    "noServers": "Aucun serveur configuré. Ajoutez-en un dans les paramètres.",
     "empty": "No terminal sessions open.",
     "connectFirst": "Connect to first server",
-    "selectServer": "Select a Server"
+    "selectServer": "Select a Server",
+    "selectSession": "Nouvelle session terminal",
+    "localLabel": "Terminal local",
+    "localDesc": "Shell sur cet ordinateur",
+    "sshServers": "Serveurs SSH"
   },
   "export": {
     "button": "Exporter",
