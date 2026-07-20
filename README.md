@@ -120,7 +120,7 @@
 
 Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
-**One-click in-app updates:** Packaged builds check GitHub Releases shortly after launch and every 4 hours. When an update is available, a persistent banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. You can also check manually from **Settings → General → Application updates**.
+**One-click in-app updates:** Packaged builds check the official `monitc.talhacan.com` update feed shortly after launch and every 4 hours. When an update is available, a persistent banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. You can also check manually from **Settings → General → Application updates**.
 
 | Platform | Format | Architecture |
 |----------|--------|--------------|
@@ -205,6 +205,7 @@ Stable updates are published automatically by [`.github/workflows/release.yml`](
 6. builds Windows NSIS/portable and Linux AppImage/deb packages
 7. validates `latest.yml`, `latest-mac.yml`, and `latest-linux.yml` against the generated packages
 8. publishes all packages, blockmaps, and updater metadata in one GitHub Release
+9. uploads the verified stable release to `https://monitc.talhacan.com/updates`, which is the production feed used by installed applications
 
 ### Required GitHub secrets
 
@@ -219,6 +220,8 @@ Configure these in **Repository Settings → Secrets and variables → Actions**
 | `APPLE_TEAM_ID` | 10-character Apple Developer Team ID |
 | `WIN_CSC_LINK` | Optional base64 Windows signing certificate (`.pfx`) |
 | `WIN_CSC_KEY_PASSWORD` | Optional Windows certificate password |
+| `UPDATE_SERVER_URL` | Production website origin: `https://monitc.talhacan.com` |
+| `UPDATE_ADMIN_TOKEN` | Long random token shared with the protected release upload API |
 
 The release workflow deliberately fails instead of publishing an unsigned macOS update when required signing secrets are missing.
 
@@ -241,6 +244,8 @@ git push origin main --follow-tags
 ```
 
 CI checks every pull request with [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Production updater logs are written to Electron's platform-specific logs directory as `updater.log`.
+
+The Dockerized React landing page and release service live in [`website/`](website/). It serves the public website, the protected `/admin` release panel, and the static `/updates` feed from one container on port `9119`. Release files persist in `website/data` and are not committed to Git.
 
 ---
 

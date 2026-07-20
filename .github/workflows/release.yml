@@ -194,3 +194,42 @@ jobs:
           make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
           fail_on_unmatched_files: true
           files: release-assets/*
+
+  deploy-update-feed:
+    name: Deploy update feed
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Upload signed release to monitc update server
+        shell: bash
+        env:
+          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
+          UPDATE_ADMIN_TOKEN: ${{ secrets.UPDATE_ADMIN_TOKEN }}
+        run: |
+          if [ -z "$UPDATE_SERVER_URL" ] || [ -z "$UPDATE_ADMIN_TOKEN" ]; then
+            echo "UPDATE_SERVER_URL and UPDATE_ADMIN_TOKEN GitHub secrets are required."
+            exit 1
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          files=()
+          while IFS= read -r -d '' file; do
+            files+=(--form "files=@${file}")
+          done < <(find release-assets -maxdepth 1 -type f -print0)
+
+          curl --fail --show-error --silent \
+            --retry 5 \
+            --connect-timeout 20 \
+            --max-time 3600 \
+            --header "Authorization: Bearer $UPDATE_ADMIN_TOKEN" \
+            --form-string "version=$version" \
+            --form-string "notes=monitc $GITHUB_REF_NAME is now available." \
+            "${files[@]}" \
+            "${UPDATE_SERVER_URL%/}/api/admin/releases"

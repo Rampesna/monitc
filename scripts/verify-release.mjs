@@ -28,8 +28,9 @@ if (!macTargets.includes('dmg') || !macTargets.includes('zip')) {
 if (packageJson.build?.mac?.notarize !== true) {
   fail('macOS notarization must be enabled for production releases')
 }
-if (packageJson.build?.publish?.[0]?.provider !== 'github') {
-  fail('GitHub publish provider is missing')
+const publishConfig = packageJson.build?.publish?.[0]
+if (publishConfig?.provider !== 'generic' || publishConfig?.url !== 'https://monitc.talhacan.com/updates') {
+  fail('production update feed must point to https://monitc.talhacan.com/updates')
 }
 
 if (!process.exitCode) {

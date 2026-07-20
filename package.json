@@ -123,9 +123,8 @@
     },
     "publish": [
       {
-        "provider": "github",
-        "owner": "Rampesna",
-        "repo": "monitc"
+        "provider": "generic",
+        "url": "https://monitc.talhacan.com/updates"
       }
     ]
   }
