@@ -192,9 +192,9 @@ export default function DeployPage() {
   const serverForProject = (p: ProjectLink) => state.servers.find((s) => s.id === p.serverId)
 
   return (
-    <div className="flex h-full">
+    <div className="deploy-page route-page flex h-full p-5 gap-4">
       {/* Project list */}
-      <div className="w-64 border-r border-[#1e1e2e] flex flex-col">
+      <div className="deploy-sidebar mon-card w-64 flex flex-col overflow-hidden">
         <div className="p-4 border-b border-[#1e1e2e] flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-200">{t('deploy.title')}</h2>
           <button onClick={startWizard} className="text-xs px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white font-medium">+ {t('common.add')}</button>
@@ -225,7 +225,7 @@ export default function DeployPage() {
       </div>
 
       {/* Detail panel */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="deploy-detail mon-card flex-1 overflow-y-auto">
         {!selectedProject ? (
           <div className="flex items-center justify-center h-full text-slate-500 text-sm">
             {t('cicd.selectProject')}

@@ -114,9 +114,9 @@ export function TerminalPage(): React.ReactElement {
   }
 
   return (
-    <div className="flex flex-col h-full p-6 space-y-4">
-      <div className="flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-3">
+    <div className="terminal-page route-page flex flex-col h-full p-6 space-y-4">
+      <div className="page-heading compact flex-shrink-0">
+        <div className="page-title-with-icon">
           <TerminalSquare size={20} className="text-indigo-400" />
           <div>
             <h1 className="text-lg font-semibold text-slate-100">{t('terminal.title')}</h1>
@@ -160,7 +160,7 @@ export function TerminalPage(): React.ReactElement {
         </div>
       )}
 
-      <div className="flex-1 min-h-0 bg-[#0a0a0f] border border-[#1e1e2e] rounded-xl overflow-hidden relative">
+      <div className="terminal-stage mon-card flex-1 min-h-0 overflow-hidden relative">
         {tabs.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500">
             <TerminalSquare size={32} className="opacity-30" />
@@ -192,7 +192,7 @@ export function TerminalPage(): React.ReactElement {
           onClick={() => setShowSessionPicker(false)}
         >
           <div
-            className="bg-[#0d0d14] border border-[#1e1e2e] rounded-2xl shadow-2xl w-full max-w-sm mx-4 overflow-hidden"
+            className="mon-modal w-full max-w-sm mx-4 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">

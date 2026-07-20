@@ -16,15 +16,15 @@ interface TabsProps {
 
 export function Tabs({ tabs, active, onChange, className = '' }: TabsProps): React.ReactElement {
   return (
-    <div className={`flex gap-0.5 p-1 bg-[#0d0d14] rounded-xl border border-[#1e1e2e] ${className}`}>
+    <div className={`mon-tabs flex gap-1 p-1 ${className}`}>
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 no-drag ${
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 no-drag ${
             active === tab.id
-              ? 'bg-indigo-600 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+              ? 'mon-tab-active'
+              : 'mon-tab-idle'
           }`}
         >
           {tab.icon}

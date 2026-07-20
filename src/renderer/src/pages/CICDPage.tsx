@@ -170,8 +170,8 @@ export default function CICDPage() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 pt-6 pb-0 border-b border-[#1e1e2e]">
+    <div className="route-page flex flex-col h-full">
+      <div className="workspace-header px-6 pt-6 pb-0 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold text-slate-100">{t('cicd.title')}</h1>
           <div className="flex gap-1 bg-slate-800/60 p-1 rounded-lg">

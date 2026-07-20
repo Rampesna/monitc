@@ -18,6 +18,12 @@
 
 ## ✨ Features
 
+### ✦ Soft DevOps Workspace
+- **Focused command center** — a 2×2 live cockpit combines CPU/RAM/Disk gauges, resource history, running containers, and a quick terminal summary
+- **Compact icon rail** — every monitoring and management surface stays one click away without sacrificing working space
+- **Consistent visual system** — graphite surfaces, low-contrast borders, soft depth, and purple/cyan/green status accents are shared across Dashboard, Servers, Docker, Kubernetes, Terminal, SFTP, CI/CD, Deploy, Logs, Alerts, and Settings
+- **Live context everywhere** — the active server and global connection health remain visible in the title bar while navigating
+
 ### 🖥️ Server Monitoring
 - **SSH-based monitoring** — connect to any Linux/macOS server over SSH (password or private key)
 - **Real-time metrics** — CPU, RAM, Disk, Network I/O, Load Average, Uptime with live charts
@@ -69,7 +75,7 @@
 
 ### 🖥️ Servers Overview
 - Dedicated **Servers** page listing all configured servers as cards
-- Live **connection status**, CPU and RAM gauges per server at a glance
+- Live **connection status**, CPU, RAM, and Disk gauges per server at a glance
 - Add a server directly from the Servers page without opening Settings
 - Open a server's SFTP files directly from its card
 
@@ -95,7 +101,7 @@
   <tr>
     <td width="50%">
       <img src=".github/assets/dashboard.png" alt="Server Dashboard" />
-      <p align="center"><sub>Server Dashboard — live CPU, RAM, Disk & Network charts</sub></p>
+      <p align="center"><sub>Command center — resources, activity, containers & quick terminal</sub></p>
     </td>
     <td width="50%">
       <img src=".github/assets/k8s.png" alt="Kubernetes Monitor" />

@@ -20,33 +20,39 @@ export function SettingsLayout(): React.ReactElement {
   ]
 
   return (
-    <div className="flex h-full">
-      <aside className="w-44 bg-[#0d0d14] border-r border-[#1e1e2e] py-6 flex-shrink-0">
-        <div className="flex items-center gap-2 px-4 mb-4">
-          <Settings size={16} className="text-slate-400" />
-          <span className="text-sm font-semibold text-slate-200">{t('settings.title')}</span>
+    <div className="settings-page h-full p-6">
+      <header className="settings-header">
+        <div>
+          <p className="section-eyebrow">WORKSPACE</p>
+          <h1>{t('settings.title')}</h1>
         </div>
-        <nav className="space-y-0.5 px-2">
-          {tabs.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === id ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/20' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
-            >
-              <Icon size={14} />
-              {label}
-            </button>
-          ))}
-        </nav>
-      </aside>
+        <Settings size={19} />
+      </header>
+      <div className="settings-body">
+        <aside className="settings-nav">
+          <div className="settings-nav-label">PREFERENCES</div>
+          <nav>
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={activeTab === id ? 'active' : ''}
+              >
+                <Icon size={14} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-      <main className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'servers' && <ServersTab />}
-        {activeTab === 'integrations' && <IntegrationsTab />}
-        {activeTab === 'git' && <GitIntegrationsTab />}
-        {activeTab === 'alert-rules' && <AlertRulesTab />}
-        {activeTab === 'general' && <GeneralTab />}
-      </main>
+        <main className="settings-content">
+          {activeTab === 'servers' && <ServersTab />}
+          {activeTab === 'integrations' && <IntegrationsTab />}
+          {activeTab === 'git' && <GitIntegrationsTab />}
+          {activeTab === 'alert-rules' && <AlertRulesTab />}
+          {activeTab === 'general' && <GeneralTab />}
+        </main>
+      </div>
     </div>
   )
 }

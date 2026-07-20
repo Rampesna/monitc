@@ -237,10 +237,10 @@ export default function SftpPage(): React.ReactElement {
   }
 
   return (
-    <div className="h-full min-h-0 flex flex-col p-5 gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-600/20 flex items-center justify-center"><FolderOpen size={18} className="text-indigo-400" /></div>
+    <div className="sftp-page route-page h-full min-h-0 flex flex-col p-5 gap-3">
+      <div className="page-heading compact">
+        <div className="page-title-with-icon">
+          <div className="page-title-icon"><FolderOpen size={18} className="text-indigo-400" /></div>
           <div>
             <h1 className="text-lg font-semibold text-slate-100">{t('sftp.title')}</h1>
             <p className="text-xs text-slate-500">{t('sftp.subtitle')}</p>
@@ -251,7 +251,7 @@ export default function SftpPage(): React.ReactElement {
         </select>
       </div>
 
-      <div className="bg-[#12121a] border border-[#1e1e2e] rounded-xl p-2 flex flex-wrap items-center gap-1.5">
+      <div className="sftp-toolbar mon-card p-2 flex flex-wrap items-center gap-1.5">
         <Button size="sm" variant="ghost" icon={<FilePlus2 size={14} />} onClick={() => setPrompt({ kind: 'file', value: '' })}>{t('sftp.newFile')}</Button>
         <Button size="sm" variant="ghost" icon={<FolderPlus size={14} />} onClick={() => setPrompt({ kind: 'directory', value: '' })}>{t('sftp.newFolder')}</Button>
         <span className="w-px h-6 bg-[#2d2d45] mx-1" />
@@ -286,7 +286,7 @@ export default function SftpPage(): React.ReactElement {
 
       {(error || notice) && <div className={`px-3 py-2 rounded-lg text-xs border ${error ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-green-500/10 border-green-500/20 text-green-300'}`}>{error || notice}</div>}
 
-      <div className="flex-1 min-h-0 bg-[#12121a] border border-[#1e1e2e] rounded-xl overflow-auto relative">
+      <div className="sftp-browser mon-card flex-1 min-h-0 overflow-auto relative">
         {(working || editorLoading) && <div className="absolute inset-0 z-10 bg-[#0d0d14]/60 backdrop-blur-[1px] flex items-center justify-center"><Spinner className="text-indigo-400" /></div>}
         <table className="w-full text-left table-fixed">
           <thead className="sticky top-0 z-[1] bg-[#15151f] border-b border-[#242435] text-[11px] uppercase tracking-wider text-slate-500">

@@ -29,16 +29,16 @@ export function Modal({ open, onClose, title, children, size = 'md', footer }: M
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${sizeClasses[size]} mx-4 bg-[#12121a] border border-[#2d2d45] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]`}>
-        <div className="flex items-center justify-between p-4 border-b border-[#1e1e2e]">
+      <div className="absolute inset-0 bg-[#050509]/75 backdrop-blur-md" onClick={onClose} />
+      <div className={`mon-modal relative w-full ${sizeClasses[size]} mx-4 flex flex-col max-h-[90vh]`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <h2 className="text-sm font-semibold text-slate-100">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/5 text-slate-400 hover:text-slate-200 transition-colors">
             <X size={16} />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-4">{children}</div>
-        {footer && <div className="p-4 border-t border-[#1e1e2e]">{footer}</div>}
+        <div className="overflow-y-auto flex-1 p-5">{children}</div>
+        {footer && <div className="p-5 border-t border-white/[0.06]">{footer}</div>}
       </div>
     </div>
   )
