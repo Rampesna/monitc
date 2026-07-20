@@ -63,7 +63,10 @@
     "active": "نشط"
   },
   "header": {
-    "selectServer": "اختر الخادم..."
+    "selectServer": "اختر الخادم...",
+    "searchServers": "ابحث بالاسم أو المضيف أو المستخدم...",
+    "noServersFound": "لم يتم العثور على خادم مطابق",
+    "manageServers": "إدارة الخوادم"
   },
   "license": {
     "title": "مرحباً بك في monitc",
@@ -400,6 +403,11 @@
     "availableDesc": "أنت تستخدم v{{current}}. الإصدار v{{latest}} متاح. هل تريد التحديث؟",
     "updateNow": "تحديث وإعادة تشغيل",
     "later": "لاحقاً",
+    "laterHint": "يمكنك العثور على هذا التحديث في الشريط العلوي أو الإعدادات ← عام.",
+    "headerAvailable": "تحديث v{{version}}",
+    "headerDownloading": "جارٍ التنزيل {{percent}}٪",
+    "headerReady": "أعد التشغيل للتحديث",
+    "openUpdateSettings": "فتح إعدادات التحديث",
     "downloadingTitle": "جاري تنزيل v{{version}}…",
     "downloadingDesc": "اكتمل {{percent}}%",
     "downloading": "جاري التنزيل…",

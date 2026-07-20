@@ -19,14 +19,17 @@
 ## ✨ Features
 
 ### ✦ Soft DevOps Workspace
-- **Focused command center** — a 2×2 live cockpit combines CPU/RAM/Disk gauges, resource history, running containers, and a quick terminal summary
-- **Compact icon rail** — every monitoring and management surface stays one click away without sacrificing working space
+- **Focused command center** — a 2×2 live cockpit combines CPU/RAM/Disk gauges, resource history, running containers, and a real inline SSH terminal
+- **Content-shaped loading** — soft skeleton states preserve each surface's layout while metrics, containers, files, and lazy workspaces load
+- **Adaptive navigation rail** — starts compact to protect working space, expands on demand with clear labels, and remembers the chosen width
+- **Searchable server switcher** — press `Cmd/Ctrl+K` or use the title bar to find a server by name, address, or user without a native select menu
 - **Consistent visual system** — graphite surfaces, low-contrast borders, soft depth, and purple/cyan/green status accents are shared across Dashboard, Servers, Docker, Kubernetes, Terminal, SFTP, CI/CD, Deploy, Logs, Alerts, and Settings
 - **Live context everywhere** — the active server and global connection health remain visible in the title bar while navigating
 
 ### 🖥️ Server Monitoring
 - **SSH-based monitoring** — connect to any Linux/macOS server over SSH (password or private key)
 - **Real-time metrics** — CPU, RAM, Disk, Network I/O, Load Average, Uptime with live charts
+- **Readable host inventory** — physical disks and network adapters stay prominent while noisy container, Kubernetes, tmpfs, and virtual-interface entries remain available behind an explicit filter
 - **Multi-server support** — monitor unlimited servers simultaneously from one dashboard
 - **Persistent SSH connection** — single multiplexed SSH connection per server (max 6 concurrent channels); no new connection per poll cycle
 - **Automatic reconnection** — exponential backoff with jitter (1.5s → 60s), SSH-level keepalives every 15s, active health check every 30s
@@ -61,6 +64,8 @@
 - Full support for K3s, K8s, and standard kubeadm clusters
 
 ### 💻 SSH Terminal
+- **Dashboard quick terminal** — connect and use a live SSH shell without leaving the command center
+- **Seamless handoff** — move the active quick-terminal session, including its recent output, into the full Terminal workspace without reconnecting
 - **Multi-tab terminal** — open multiple interactive SSH shell sessions simultaneously
 - **Full xterm.js terminal** — true 256-color terminal with resize support
 - **Server picker modal** — select any configured server from a list, with live connection status
@@ -87,6 +92,8 @@
 ### 🔔 Alerts
 - Configurable threshold rules: CPU > X%, RAM > X%, Disk > X% for N consecutive minutes
 - Multi-channel notifications: **Email (SMTP)**, **WhatsApp** (Twilio / custom API), **Telegram Bot**
+- Theme-native on/off controls and connection-aware cards replace platform checkboxes across notification and Git integrations
+- **Calm templates workspace** — compact, responsive alert-template cards use theme tones and fill wide settings surfaces cleanly
 - Cooldown periods to prevent alert flooding
 
 ### 🌍 Internationalization
@@ -126,7 +133,7 @@
 
 Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
-**One-click in-app updates:** Packaged builds check the official `monitc.talhacan.com` update feed shortly after launch and every 4 hours. When an update is available, a persistent banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. You can also check manually from **Settings → General → Application updates**.
+**One-click in-app updates:** Packaged builds check the official `monitc.talhacan.com` update feed about 5 seconds after launch and every 4 hours. When an update is available, a banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. Choosing **Later** dismisses the banner while keeping an update shortcut in the header; you can resume at any time from that shortcut or **Settings → General → Application updates**.
 
 | Platform | Format | Architecture |
 |----------|--------|--------------|
@@ -233,13 +240,15 @@ The release workflow deliberately fails instead of publishing an unsigned macOS 
 
 ### Release commands
 
-For the already prepared `1.3.0` release after merging to `main`:
+For the prepared `1.3.4` release after merging to `main`:
 
 ```bash
-npm run release:verify -- v1.3.0
-git tag -a v1.3.0 -m "monitc v1.3.0"
-git push origin v1.3.0
+npm run release:verify -- v1.3.4
+git tag -a v1.3.4 -m "monitc v1.3.4"
+git push origin v1.3.4
 ```
+
+`v1.3.1` is also the migration release for installations that still read updates from GitHub Releases. Publish it to GitHub and the production generic feed together; after installing it, clients read future releases directly from `monitc.talhacan.com/updates`.
 
 For later patch releases, `npm version` updates both package files, creates the release commit, and creates the tag:
 
@@ -288,6 +297,8 @@ Copy and delete operations support non-empty directories recursively. Downloads 
 3. The terminal connects and opens an interactive shell session
 4. Open multiple tabs for different servers simultaneously
 5. Use the **×** button on a tab to close the session
+
+For a faster path, click **Connect quick terminal** on Dashboard. Run commands directly in the card, then use the expand icon in its header to move that same live session and recent output into the full Terminal workspace.
 
 ---
 

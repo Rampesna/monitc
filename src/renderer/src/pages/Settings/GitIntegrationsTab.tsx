@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { CheckCircle2, Github, Gitlab, KeyRound, LoaderCircle, ShieldCheck } from 'lucide-react'
 import type { GitHubConfig, GitLabConfig } from '../../lib/types'
+import { Button } from '../../components/common/Button'
+import { Switch } from '../../components/common/Switch'
 
 interface ProviderCardProps {
   title: string
-  icon: string
+  icon: ReactNode
   config: GitHubConfig | GitLabConfig
   onChange: (cfg: GitHubConfig | GitLabConfig) => void
   onTest: () => Promise<void>
@@ -16,21 +19,16 @@ interface ProviderCardProps {
 function ProviderCard({ title, icon, config, onChange, onTest, testing, testResult, baseUrlPlaceholder }: ProviderCardProps) {
   const { t } = useTranslation()
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 space-y-4">
+    <div className={`integration-card git-provider-card rounded-xl p-5 space-y-4 ${config.enabled ? 'is-enabled' : ''}`}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">{icon}</span>
+          <span className="provider-icon">{icon}</span>
           <h3 className="font-semibold text-slate-100">{title}</h3>
         </div>
-        <label className="relative inline-flex items-center cursor-pointer">
-          <input
-            type="checkbox"
-            checked={config.enabled}
-            onChange={(e) => onChange({ ...config, enabled: e.target.checked })}
-            className="sr-only peer"
-          />
-          <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600" />
-        </label>
+        <div className="integration-switch-wrap">
+          <span>{config.enabled ? 'On' : 'Off'}</span>
+          <Switch checked={config.enabled} onChange={(enabled) => onChange({ ...config, enabled })} label={`${title} ${config.enabled ? 'on' : 'off'}`} />
+        </div>
       </div>
 
       {config.enabled && (
@@ -58,23 +56,15 @@ function ProviderCard({ title, icon, config, onChange, onTest, testing, testResu
             />
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={onTest}
               disabled={testing || !config.pat}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 rounded-lg text-sm font-medium text-slate-100 transition-colors"
+              icon={testing ? <LoaderCircle size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
             >
-              {testing ? (
-                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              )}
               {t('gitTab.testConnection')}
-            </button>
+            </Button>
             {testResult && (
               <span className={`text-sm ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
                 {testResult.message}
@@ -160,7 +150,7 @@ export default function GitIntegrationsTab() {
 
       <ProviderCard
         title="GitHub"
-        icon="🐙"
+        icon={<Github size={17} />}
         config={github}
         onChange={(c) => setGithub(c as GitHubConfig)}
         onTest={testGithub}
@@ -171,7 +161,7 @@ export default function GitIntegrationsTab() {
 
       <ProviderCard
         title="GitLab"
-        icon="🦊"
+        icon={<Gitlab size={17} />}
         config={gitlab}
         onChange={(c) => setGitlab(c as GitLabConfig)}
         onTest={testGitlab}
@@ -181,17 +171,13 @@ export default function GitIntegrationsTab() {
       />
 
       <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 rounded-lg text-sm font-semibold text-white transition-colors"
-        >
+        <Button variant="primary" onClick={handleSave} disabled={saving} loading={saving} icon={<KeyRound size={13} />}>
           {saving ? t('common.saving') : saved ? t('common.saved') : t('gitTab.saveChanges')}
-        </button>
+        </Button>
       </div>
 
-      <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-sm text-amber-300">
-        <div className="font-semibold mb-1">{t('gitTab.permissionsTitle')}</div>
+      <div className="integration-permissions rounded-xl p-4 text-sm text-amber-300">
+        <div className="font-semibold mb-1 flex items-center gap-2"><ShieldCheck size={14} />{t('gitTab.permissionsTitle')}</div>
         <ul className="space-y-0.5 text-amber-400/80 list-disc list-inside">
           <li>{t('gitTab.permissionsGH')}</li>
           <li>{t('gitTab.permissionsGL')}</li>

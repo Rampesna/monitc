@@ -12,7 +12,7 @@ import { KubernetesPodDetail } from './pages/KubernetesPodDetail'
 import { LogViewer } from './pages/LogViewer'
 import { AlertsPage } from './pages/AlertsPage'
 import { SettingsLayout } from './pages/Settings/SettingsLayout'
-import { Spinner } from './components/common/Spinner'
+import { Skeleton } from './components/common/Skeleton'
 
 const K8sManagePage = lazy(() => import('./pages/K8sManagePage'))
 const CICDPage = lazy(() => import('./pages/CICDPage'))
@@ -22,8 +22,10 @@ const SftpPage = lazy(() => import('./pages/SftpPage'))
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-full">
-      <Spinner size="lg" className="text-indigo-400" />
+    <div className="route-skeleton" aria-label="Loading">
+      <div className="route-skeleton-heading"><Skeleton rounded="lg" /><div><Skeleton /><Skeleton /></div></div>
+      <div className="route-skeleton-toolbar"><Skeleton /><Skeleton /><Skeleton /></div>
+      <div className="route-skeleton-surface">{Array.from({ length: 7 }).map((_, index) => <Skeleton key={index} />)}</div>
     </div>
   )
 }
@@ -33,11 +35,10 @@ function AppInner(): React.ReactElement {
 
   if (state.isLoading) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0f] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Spinner size="lg" className="text-indigo-400" />
-          <p className="text-slate-400 text-sm">Loading...</p>
-        </div>
+      <div className="app-boot-skeleton" aria-label="Loading monitc">
+        <header><span className="sidebar-brand-mark"><span className="sidebar-brand-glyph" /></span><Skeleton className="w-36 h-2.5" /><Skeleton className="w-28 h-2.5" /></header>
+        <aside><span className="sidebar-brand-mark"><span className="sidebar-brand-glyph" /></span>{Array.from({ length: 9 }).map((_, index) => <Skeleton rounded="lg" key={index} />)}</aside>
+        <main><Skeleton className="w-24 h-2.5" /><Skeleton className="w-64 h-7" /><div>{Array.from({ length: 4 }).map((_, index) => <section key={index}><Skeleton className="w-28 h-2.5" /><Skeleton rounded="lg" className="flex-1 w-full" /></section>)}</div></main>
       </div>
     )
   }

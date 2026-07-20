@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../components/common/Button'
 import { Modal } from '../components/common/Modal'
 import { Spinner } from '../components/common/Spinner'
+import { Skeleton } from '../components/common/Skeleton'
 import { useApp } from '../context/AppContext'
 import { formatBytes } from '../lib/format'
 import type { SftpEntry } from '../lib/types'
@@ -293,12 +294,22 @@ export default function SftpPage(): React.ReactElement {
             <tr><th className="w-10 px-3 py-2.5"><input type="checkbox" checked={visibleEntries.length > 0 && visibleEntries.every((entry) => selected.has(entry.path))} onChange={(event) => setSelected(event.target.checked ? new Set(visibleEntries.map((entry) => entry.path)) : new Set())} /></th><th className="px-2 py-2.5">{t('common.name')}</th><th className="w-28 px-2 py-2.5">{t('common.size')}</th><th className="w-40 px-2 py-2.5">{t('sftp.modified')}</th><th className="w-36 px-2 py-2.5">{t('sftp.permissions')}</th><th className="w-12" /></tr>
           </thead>
           <tbody>
+            {loading && Array.from({ length: 9 }).map((_, index) => (
+              <tr key={`sftp-skeleton-${index}`} className="sftp-skeleton-row" aria-hidden="true">
+                <td className="px-3 py-2.5"><Skeleton rounded="sm" className="w-3.5 h-3.5" /></td>
+                <td className="px-2 py-2.5"><div className="flex items-center gap-2"><Skeleton rounded="md" className="w-4 h-4" /><Skeleton className={`${index % 3 === 0 ? 'w-40' : index % 3 === 1 ? 'w-28' : 'w-52'} h-2.5`} /></div></td>
+                <td className="px-2 py-2.5"><Skeleton className="w-10 h-2" /></td>
+                <td className="px-2 py-2.5"><Skeleton className="w-24 h-2" /></td>
+                <td className="px-2 py-2.5"><Skeleton className="w-20 h-2" /></td>
+                <td />
+              </tr>
+            ))}
             {!loading && visibleEntries.map((entry) => {
               const isSelected = selected.has(entry.path)
               return (
                 <tr key={entry.path} onClick={(event) => choose(entry, event.metaKey || event.ctrlKey)} onDoubleClick={() => openEntry(entry)} className={`border-b border-[#1b1b28] text-xs cursor-default select-none ${isSelected ? 'bg-indigo-500/10' : 'hover:bg-white/[0.025]'}`}>
                   <td className="px-3 py-2.5"><input type="checkbox" checked={isSelected} onChange={() => choose(entry, true)} onClick={(event) => event.stopPropagation()} /></td>
-                  <td className="px-2 py-2.5"><div className="flex items-center gap-2 min-w-0">{entry.type === 'directory' ? <Folder size={16} className="text-amber-400 fill-amber-400/20 flex-shrink-0" /> : <File size={15} className="text-slate-500 flex-shrink-0" />}<span className="text-slate-200 truncate">{entry.name}</span>{clipboard?.paths.includes(entry.path) && <span className="text-[9px] text-indigo-400 border border-indigo-500/20 rounded px-1">{t(`sftp.${clipboard.mode}`)}</span>}</div></td>
+                  <td className="px-2 py-2.5"><div className="flex items-center gap-2 min-w-0">{entry.type === 'directory' ? <Folder size={16} className="sftp-folder-icon flex-shrink-0" /> : <File size={15} className="sftp-file-icon flex-shrink-0" />}<span className="text-slate-200 truncate">{entry.name}</span>{clipboard?.paths.includes(entry.path) && <span className="text-[9px] text-indigo-400 border border-indigo-500/20 rounded px-1">{t(`sftp.${clipboard.mode}`)}</span>}</div></td>
                   <td className="px-2 py-2.5 text-slate-500">{entry.type === 'directory' ? '—' : formatBytes(entry.size)}</td>
                   <td className="px-2 py-2.5 text-slate-500">{new Date(entry.modifiedAt).toLocaleString()}</td>
                   <td className="px-2 py-2.5 font-mono text-slate-500">{entry.permissions}</td>
@@ -308,7 +319,6 @@ export default function SftpPage(): React.ReactElement {
             })}
           </tbody>
         </table>
-        {loading && <div className="h-52 flex items-center justify-center"><Spinner className="text-indigo-400" /></div>}
         {!loading && !visibleEntries.length && <div className="h-52 flex flex-col items-center justify-center gap-2 text-slate-600"><HardDrive size={26} /><p className="text-xs">{filter ? t('sftp.noSearchResults') : t('sftp.emptyFolder')}</p></div>}
       </div>
       <div className="flex items-center justify-between text-[11px] text-slate-600 px-1"><span>{t('sftp.itemCount', { count: entries.length })}{selected.size ? ` · ${t('sftp.selectedCount', { count: selected.size })}` : ''}</span><span>{state.connectionStatuses[serverId] === 'connected' ? t('common.connected') : t('common.connecting')}</span></div>

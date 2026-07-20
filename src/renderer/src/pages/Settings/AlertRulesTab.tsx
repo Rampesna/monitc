@@ -1,9 +1,8 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Bell, Plus } from 'lucide-react'
+import { Activity, Bell, Plus, Sparkles } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
-import { Badge } from '../../components/common/Badge'
 import { useApp } from '../../context/AppContext'
 import { ALERT_TEMPLATES, METRIC_TYPES, isEventMetric } from '../../lib/constants'
 import { useNavigate } from 'react-router-dom'
@@ -34,38 +33,39 @@ export function AlertRulesTab(): React.ReactElement {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-2">
-        <Bell size={16} className="text-indigo-400" />
-        <h2 className="text-base font-semibold text-slate-100">{t('alertRulesTab.title')}</h2>
+    <div className="alert-template-page">
+      <div className="settings-section-header alert-template-header">
+        <div className="settings-section-title">
+          <span><Bell size={15} /></span>
+          <div><h2>{t('alertRulesTab.title')}</h2><p>{t('alertRulesTab.subtitle')}</p></div>
+        </div>
+        <div className="alert-template-count"><Sparkles size={12} /> {ALERT_TEMPLATES.length} templates</div>
       </div>
 
-      <p className="text-sm text-slate-400">{t('alertRulesTab.subtitle')}</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {ALERT_TEMPLATES.map((tpl) => {
+      <div className="alert-template-grid">
+        {ALERT_TEMPLATES.map((tpl, index) => {
           const metric = METRIC_TYPES.find((m) => m.value === tpl.metric)
+          const tone = ['violet', 'cyan', 'mint', 'rose'][index % 4]
           return (
-            <Card key={tpl.id} className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell size={14} className="text-amber-400" />
-                  <span className="text-sm font-semibold text-slate-200">{tpl.name}</span>
+            <Card key={tpl.id} className={`alert-template-card tone-${tone}`}>
+              <div className="alert-template-top">
+                <div className="alert-template-icon"><Activity size={15} /></div>
+                <div className="alert-template-name">
+                  <span>{tpl.name}</span>
+                  <small>{metric?.label}</small>
                 </div>
-                <Badge variant="warning">{t('alertRulesTab.add')}</Badge>
+                <Button variant="ghost" size="sm" icon={<Plus size={12} />} onClick={() => applyTemplate(tpl)}>
+                  {t('alertRulesTab.add')}
+                </Button>
               </div>
-              <div className="text-xs text-slate-500 space-y-1">
-                <div>Metric: <span className="text-slate-300">{metric?.label}</span></div>
+              <div className="alert-template-condition">
                 {isEventMetric(tpl.metric) ? (
-                  <div>Condition: <span className="text-slate-300">SSH kesilince, {tpl.durationSeconds}s sonra</span></div>
+                  <><strong>SSH offline</strong><span>for {tpl.durationSeconds}s</span></>
                 ) : (
-                  <div>Condition: <span className="text-slate-300">{tpl.operator === 'gt' ? '>' : tpl.operator === 'lt' ? '<' : '='} {tpl.threshold}</span></div>
+                  <><strong>{tpl.operator === 'gt' ? '>' : tpl.operator === 'lt' ? '<' : '='} {tpl.threshold}</strong><span>for {tpl.durationSeconds}s</span></>
                 )}
-                <div>Duration: <span className="text-slate-300">{tpl.durationSeconds}s</span> · Cooldown: <span className="text-slate-300">{tpl.cooldownMinutes}m</span></div>
               </div>
-              <Button variant="secondary" size="sm" icon={<Plus size={12} />} onClick={() => applyTemplate(tpl)}>
-                {t('alertRulesTab.add')}
-              </Button>
+              <div className="alert-template-footer"><span>Cooldown</span><b>{tpl.cooldownMinutes}m</b></div>
             </Card>
           )
         })}

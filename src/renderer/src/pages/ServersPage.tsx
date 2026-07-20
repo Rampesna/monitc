@@ -9,6 +9,7 @@ import { MetricGauge } from '../components/common/MetricGauge'
 import { Button } from '../components/common/Button'
 import type { ConnectionState, SystemMetrics } from '../lib/types'
 import { ServerFormModal } from '../components/servers/ServerFormModal'
+import { GaugeSkeleton } from '../components/common/Skeleton'
 
 export function ServersPage(): React.ReactElement {
   const { t } = useTranslation()
@@ -104,11 +105,13 @@ export function ServersPage(): React.ReactElement {
                   <MetricGauge value={latest.disk.find((disk) => disk.mountpoint === '/')?.percent ?? 0} label={t('dashboard.disk')} tone="green" size="md" />
                 </div>
               ) : (
-                <div className="flex items-center justify-center py-4 border-t border-[#1e1e2e]">
-                  <p className="text-xs text-slate-600">
-                    {connStatus === 'connecting' ? t('common.connecting') : connStatus === 'connected' ? t('serverDashboard.noMetrics') : t('common.disconnected')}
-                  </p>
-                </div>
+                ['connecting', 'reconnecting', 'connected'].includes(connStatus) ? (
+                  <div className="server-metrics server-metrics-loading"><GaugeSkeleton /><GaugeSkeleton /><GaugeSkeleton /></div>
+                ) : (
+                  <div className="flex items-center justify-center py-4 border-t border-[#1e1e2e]">
+                    <p className="text-xs text-slate-600">{t('common.disconnected')}</p>
+                  </div>
+                )
               )}
             </Card>
           )

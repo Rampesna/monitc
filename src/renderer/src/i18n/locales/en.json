@@ -98,7 +98,10 @@
     "unsavedConfirm": "Discard unsaved changes?"
   },
   "header": {
-    "selectServer": "Select Server..."
+    "selectServer": "Select server...",
+    "searchServers": "Search name, host or user...",
+    "noServersFound": "No matching server found",
+    "manageServers": "Manage servers"
   },
   "license": {
     "title": "Welcome to monitc",
@@ -454,6 +457,11 @@
     "availableDesc": "You are on v{{current}}. Version v{{latest}} is available. Would you like to update?",
     "updateNow": "Update & restart",
     "later": "Later",
+    "laterHint": "Find this update anytime in the header or Settings → General.",
+    "headerAvailable": "Update v{{version}}",
+    "headerDownloading": "{{percent}}% downloading",
+    "headerReady": "Restart to update",
+    "openUpdateSettings": "Open update settings",
     "downloadingTitle": "Downloading v{{version}}…",
     "downloadingDesc": "{{percent}}% complete",
     "downloading": "Downloading…",

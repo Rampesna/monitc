@@ -195,9 +195,9 @@ function Hero({ release }) {
       <div className="hero-glow glow-two" />
       <div className="shell hero-content">
         <div className="hero-copy">
-          <a href="#updates" className="release-pill">
-            <span><Sparkles size={12} /> v{release.version} is here</span>
-            {release.summary || 'SFTP, one-click updates and a sharper workflow'}
+          <a href="#features" className="release-pill">
+            <span><Sparkles size={12} /> Designed for focus</span>
+            <b>Servers, containers, terminals and files—one calm workspace.</b>
             <ChevronRight size={14} />
           </a>
           <p className="eyebrow">SERVER OPERATIONS, BEAUTIFULLY FOCUSED</p>
@@ -414,7 +414,7 @@ function Admin() {
 }
 
 export default function App() {
-  const [release, setRelease] = useState({ version: '1.3.0', summary: '', downloadUrl: '', publishedAt: null })
+  const [release, setRelease] = useState({ version: '1.3.4', summary: '', downloadUrl: '', publishedAt: null })
   useEffect(() => {
     fetch('/api/releases/latest').then((response) => response.ok ? response.json() : null).then((data) => data && setRelease(data)).catch(() => {})
   }, [])

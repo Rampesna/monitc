@@ -23,7 +23,8 @@ const DEFAULT_DATA: AppData = {
       docker: 10,
       kubernetes: 10
     },
-    sidebarCollapsed: false,
+    sidebarCollapsed: true,
+    sidebarPreferenceSet: true,
     language: 'en'
   },
   projectLinks: []
@@ -43,7 +44,20 @@ export function loadData(): AppData {
   try {
     const json = fs.readFileSync(filePath, 'utf8')
     const parsed = JSON.parse(json) as AppData
-    return { ...structuredClone(DEFAULT_DATA), ...parsed }
+    const defaults = structuredClone(DEFAULT_DATA)
+    const hasSidebarPreference = parsed.preferences?.sidebarPreferenceSet === true
+    return {
+      ...defaults,
+      ...parsed,
+      integrations: { ...defaults.integrations, ...parsed.integrations },
+      preferences: {
+        ...defaults.preferences,
+        ...parsed.preferences,
+        pollIntervals: { ...defaults.preferences.pollIntervals, ...parsed.preferences?.pollIntervals },
+        sidebarCollapsed: hasSidebarPreference ? parsed.preferences.sidebarCollapsed : true,
+        sidebarPreferenceSet: true
+      }
+    }
   } catch {
     return structuredClone(DEFAULT_DATA)
   }
