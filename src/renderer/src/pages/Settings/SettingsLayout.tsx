@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Settings, Server, Link2, Bell, Sliders, GitBranch } from 'lucide-react'
 import { ServersTab } from './ServersTab'
 import { IntegrationsTab } from './IntegrationsTab'
@@ -7,9 +8,28 @@ import { AlertRulesTab } from './AlertRulesTab'
 import { GeneralTab } from './GeneralTab'
 import GitIntegrationsTab from './GitIntegrationsTab'
 
+const SETTINGS_TABS = ['servers', 'integrations', 'git', 'alert-rules', 'general'] as const
+type SettingsTab = typeof SETTINGS_TABS[number]
+
+function requestedTab(search: string): SettingsTab {
+  const candidate = new URLSearchParams(search).get('tab')
+  return SETTINGS_TABS.includes(candidate as SettingsTab) ? candidate as SettingsTab : 'servers'
+}
+
 export function SettingsLayout(): React.ReactElement {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState('servers')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<SettingsTab>(() => requestedTab(location.search))
+
+  useEffect(() => {
+    setActiveTab(requestedTab(location.search))
+  }, [location.search])
+
+  const selectTab = (tab: SettingsTab): void => {
+    setActiveTab(tab)
+    navigate(`/settings?tab=${tab}`, { replace: true })
+  }
 
   const tabs = [
     { id: 'servers', label: t('settings.servers'), icon: Server },
@@ -35,7 +55,7 @@ export function SettingsLayout(): React.ReactElement {
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
-                onClick={() => setActiveTab(id)}
+                onClick={() => selectTab(id as SettingsTab)}
                 className={activeTab === id ? 'active' : ''}
               >
                 <Icon size={14} />

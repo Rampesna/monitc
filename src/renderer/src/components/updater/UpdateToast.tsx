@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download, RefreshCw, AlertCircle, Sparkles, Loader2, FileText } from 'lucide-react'
 import { useAppUpdater } from '../../hooks/useAppUpdater'
@@ -9,7 +9,11 @@ export function UpdateToast(): React.ReactElement | null {
   const { state, visible, check, update, install } = useAppUpdater()
   const [snoozed, setSnoozed] = useState(false)
 
-  if (!visible || snoozed) return null
+  useEffect(() => {
+    setSnoozed(false)
+  }, [state.version])
+
+  if (!visible || (snoozed && state.status === 'available')) return null
 
   const isMac = window.monitcAPI.app.platform === 'darwin'
 
@@ -86,6 +90,9 @@ export function UpdateToast(): React.ReactElement | null {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-100 leading-snug">{title}</p>
               <p className="text-xs text-slate-400 mt-1 leading-relaxed">{description}</p>
+              {state.status === 'available' && (
+                <p className="text-[10px] text-slate-600 mt-1.5 leading-relaxed">{t('updater.laterHint')}</p>
+              )}
             </div>
           </div>
 

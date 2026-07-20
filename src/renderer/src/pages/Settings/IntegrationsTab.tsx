@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link2, Mail, MessageCircle, Send, CheckCircle, XCircle } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
+import { Switch } from '../../components/common/Switch'
 import type { Integrations, SmtpConfig, WhatsAppConfig, TelegramConfig } from '../../lib/types'
 
 const SMTP_DEFAULT: SmtpConfig = { enabled: false, host: '', port: 587, username: '', password: '', fromAddress: '', secure: false }
@@ -61,7 +62,14 @@ export function IntegrationsTab(): React.ReactElement {
   const handleSave = async (): Promise<void> => {
     setSaving(true)
     try {
-      await window.monitcAPI.settings.saveIntegrations({ smtp: smtp.host ? smtp : null, whatsapp: wa.accountSid ? wa : null, telegram: tg.botToken ? tg : null })
+      const next: Integrations = {
+        ...integrations,
+        smtp: smtp.host ? smtp : null,
+        whatsapp: wa.accountSid ? wa : null,
+        telegram: tg.botToken ? tg : null
+      }
+      await window.monitcAPI.settings.saveIntegrations(next)
+      setIntegrations(next)
     } finally { setSaving(false) }
   }
 
@@ -93,16 +101,16 @@ export function IntegrationsTab(): React.ReactElement {
         <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>{t('common.save')}</Button>
       </div>
 
-      <Card className="space-y-4">
+      <Card className={`integration-card space-y-4 ${smtp.enabled ? 'is-enabled' : ''}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Mail size={14} className="text-blue-400" />
             <h3 className="text-sm font-semibold text-slate-200">{t('integrationsTab.smtp')}</h3>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-xs text-slate-400">{t('common.connected')}</span>
-            <input type="checkbox" checked={smtp.enabled} onChange={(e) => setSmtp((s) => ({ ...s, enabled: e.target.checked }))} className="rounded" />
-          </label>
+          <div className="integration-switch-wrap">
+            <span>{smtp.enabled ? 'On' : 'Off'}</span>
+            <Switch checked={smtp.enabled} onChange={(enabled) => setSmtp((s) => ({ ...s, enabled }))} label={`${t('integrationsTab.smtp')} ${smtp.enabled ? 'on' : 'off'}`} />
+          </div>
         </div>
         {smtp.enabled && (
           <div className="grid grid-cols-2 gap-3">
@@ -112,8 +120,8 @@ export function IntegrationsTab(): React.ReactElement {
             <FieldGroup label={t('integrationsTab.smtpPass')}><input type="password" value={smtp.password} onChange={(e) => setSmtp((s) => ({ ...s, password: e.target.value }))} className={inputCls} /></FieldGroup>
             <FieldGroup label={t('integrationsTab.smtpFrom')}><input value={smtp.fromAddress} onChange={(e) => setSmtp((s) => ({ ...s, fromAddress: e.target.value }))} className={inputCls} placeholder="monitc@example.com" /></FieldGroup>
             <FieldGroup label={t('integrationsTab.smtpSecure')}>
-              <label className="flex items-center gap-2 mt-2">
-                <input type="checkbox" checked={smtp.secure} onChange={(e) => setSmtp((s) => ({ ...s, secure: e.target.checked }))} />
+              <label className="integration-inline-switch mt-2">
+                <Switch size="sm" checked={smtp.secure} onChange={(secure) => setSmtp((s) => ({ ...s, secure }))} label={t('integrationsTab.smtpSecure')} />
                 <span className="text-xs text-slate-400">{t('integrationsTab.smtpSecure')}</span>
               </label>
             </FieldGroup>
@@ -127,16 +135,16 @@ export function IntegrationsTab(): React.ReactElement {
         )}
       </Card>
 
-      <Card className="space-y-4">
+      <Card className={`integration-card space-y-4 ${wa.enabled ? 'is-enabled' : ''}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageCircle size={14} className="text-green-400" />
             <h3 className="text-sm font-semibold text-slate-200">{t('integrationsTab.whatsapp')}</h3>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-xs text-slate-400">{t('common.connected')}</span>
-            <input type="checkbox" checked={wa.enabled} onChange={(e) => setWa((w) => ({ ...w, enabled: e.target.checked }))} className="rounded" />
-          </label>
+          <div className="integration-switch-wrap">
+            <span>{wa.enabled ? 'On' : 'Off'}</span>
+            <Switch checked={wa.enabled} onChange={(enabled) => setWa((w) => ({ ...w, enabled }))} label={`${t('integrationsTab.whatsapp')} ${wa.enabled ? 'on' : 'off'}`} />
+          </div>
         </div>
         {wa.enabled && (
           <div className="grid grid-cols-2 gap-3">
@@ -162,16 +170,16 @@ export function IntegrationsTab(): React.ReactElement {
         )}
       </Card>
 
-      <Card className="space-y-4">
+      <Card className={`integration-card space-y-4 ${tg.enabled ? 'is-enabled' : ''}`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Send size={14} className="text-blue-400" />
             <h3 className="text-sm font-semibold text-slate-200">{t('integrationsTab.telegram')}</h3>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <span className="text-xs text-slate-400">{t('common.connected')}</span>
-            <input type="checkbox" checked={tg.enabled} onChange={(e) => setTg((tgState) => ({ ...tgState, enabled: e.target.checked }))} className="rounded" />
-          </label>
+          <div className="integration-switch-wrap">
+            <span>{tg.enabled ? 'On' : 'Off'}</span>
+            <Switch checked={tg.enabled} onChange={(enabled) => setTg((tgState) => ({ ...tgState, enabled }))} label={`${t('integrationsTab.telegram')} ${tg.enabled ? 'on' : 'off'}`} />
+          </div>
         </div>
         {tg.enabled && (
           <div className="grid grid-cols-2 gap-3">

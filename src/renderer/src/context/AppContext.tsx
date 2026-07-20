@@ -64,7 +64,8 @@ const initialState: AppState = {
   preferences: {
     theme: 'dark',
     pollIntervals: { system: 5, docker: 10, kubernetes: 10 },
-    sidebarCollapsed: false,
+    sidebarCollapsed: true,
+    sidebarPreferenceSet: true,
     language: 'en'
   },
   recentAlerts: [],

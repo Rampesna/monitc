@@ -12,6 +12,8 @@ const dataDirectory = resolve(process.env.DATA_DIR || '/data')
 const updatesDirectory = join(dataDirectory, 'updates')
 const temporaryDirectory = join(dataDirectory, 'tmp')
 const releaseFile = join(dataDirectory, 'release.json')
+const distDirectory = resolve('dist')
+const assetsDirectory = join(distDirectory, 'assets')
 const adminToken = process.env.UPDATE_ADMIN_TOKEN || ''
 const publicOrigin = (process.env.PUBLIC_ORIGIN || 'https://monitc.talhacan.com').replace(/\/$/, '')
 const allowedNames = /^(latest(?:-mac|-linux)?\.ya?ml|[a-zA-Z0-9][a-zA-Z0-9._+() -]*\.(?:dmg|zip|exe|AppImage|deb|blockmap))$/
@@ -57,7 +59,7 @@ function listFiles() {
 }
 
 function readRelease() {
-  if (!existsSync(releaseFile)) return { version: '1.3.0', summary: 'SFTP, one-click updates and a sharper workflow', publishedAt: null, downloads: [] }
+  if (!existsSync(releaseFile)) return { version: '1.3.4', summary: 'Skeleton loading, an inline SSH terminal, and calmer files, settings, and alerts.', publishedAt: null, downloads: [] }
   return JSON.parse(readFileSync(releaseFile, 'utf8'))
 }
 
@@ -142,10 +144,19 @@ app.post('/api/admin/releases', requireAdmin, upload.array('files', 30), async (
 })
 
 app.use('/updates', express.static(updatesDirectory, { fallthrough: false, immutable: false, maxAge: 0, etag: true }))
-app.use(express.static(resolve('dist'), { maxAge: '1h', etag: true }))
+app.use('/assets', express.static(assetsDirectory, { fallthrough: true, immutable: true, maxAge: '1y', etag: true }))
+app.get(/^\/assets\/index-[0-9A-Za-z_-]+\.(?:js|css)$/, (request, response, next) => {
+  const extension = extname(request.path)
+  const currentAsset = readdirSync(assetsDirectory).find((name) => name.startsWith('index-') && extname(name) === extension)
+  if (!currentAsset) return next()
+  response.set('Cache-Control', 'no-cache, max-age=0, must-revalidate')
+  response.sendFile(join(assetsDirectory, currentAsset))
+})
+app.use(express.static(distDirectory, { index: false, maxAge: '1h', etag: true }))
 app.use((request, response, next) => {
   if (request.method !== 'GET' || request.path.startsWith('/api/') || request.path.startsWith('/updates/')) return next()
-  response.sendFile(resolve('dist/index.html'))
+  response.set('Cache-Control', 'no-store, no-cache, max-age=0, must-revalidate')
+  response.sendFile(join(distDirectory, 'index.html'))
 })
 
 app.use((error, _request, response, _next) => {

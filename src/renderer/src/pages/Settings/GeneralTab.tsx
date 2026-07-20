@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, RefreshCw, Sliders, Trash2 } from 'lucide-react'
+import { Download, Languages, Monitor, Moon, RefreshCw, Sliders, Sun, Timer, Trash2 } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { useApp } from '../../context/AppContext'
@@ -74,54 +74,59 @@ export function GeneralTab(): React.ReactElement {
     else await updater.check()
   }
 
+  const themeOptions = [
+    { value: 'dark' as const, label: t('generalTab.themeDark'), icon: Moon },
+    { value: 'light' as const, label: t('generalTab.themeLight'), icon: Sun },
+    { value: 'system' as const, label: t('generalTab.themeSystem'), icon: Monitor }
+  ]
+
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sliders size={16} className="text-indigo-400" />
-          <h2 className="text-base font-semibold text-slate-100">{t('generalTab.title')}</h2>
+    <div className="general-settings">
+      <div className="settings-section-header">
+        <div className="settings-section-title">
+          <span><Sliders size={15} /></span>
+          <div><h2>{t('generalTab.title')}</h2></div>
         </div>
         <Button variant="primary" size="sm" loading={saving} onClick={handleSave}>
           {saved ? t('generalTab.preferencesSaved') : t('generalTab.savePreferences')}
         </Button>
       </div>
 
-      <Card className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-200">{t('generalTab.theme')}</h3>
-        <div className="flex gap-2">
-          {(['dark', 'light', 'system'] as const).map((themeOpt) => (
+      <div className="settings-preference-grid">
+        <Card className="settings-soft-card settings-theme-card">
+          <div className="settings-card-heading"><Moon size={14} /><h3>{t('generalTab.theme')}</h3></div>
+          <div className="settings-theme-options">
+          {themeOptions.map(({ value, label, icon: Icon }) => (
             <button
-              key={themeOpt}
-              onClick={() => setPrefs((p) => ({ ...p, theme: themeOpt }))}
-              className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${prefs.theme === themeOpt ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300' : 'bg-[#0d0d14] border-[#1e1e2e] text-slate-400 hover:border-[#2d2d45]'}`}
+              key={value}
+              onClick={() => setPrefs((p) => ({ ...p, theme: value }))}
+              className={`settings-choice ${prefs.theme === value ? 'is-selected' : ''}`}
             >
-              {themeOpt === 'dark' ? t('generalTab.themeDark') : themeOpt === 'light' ? t('generalTab.themeLight') : t('generalTab.themeSystem')}
+              <Icon size={15} /><span>{label}</span>
             </button>
           ))}
-        </div>
-      </Card>
+          </div>
+        </Card>
 
-      {/* Language */}
-      <Card className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-200">{t('generalTab.language')}</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <Card className="settings-soft-card settings-language-card">
+          <div className="settings-card-heading"><Languages size={14} /><h3>{t('generalTab.language')}</h3></div>
+          <div className="settings-language-grid">
           {LANGUAGES.map((lang) => (
             <button
               key={lang.code}
               onClick={() => setPrefs((p) => ({ ...p, language: lang.code }))}
-              className={`px-3 py-2.5 rounded-lg text-sm font-medium border transition-colors text-left flex items-center justify-between ${(prefs.language ?? 'en') === lang.code ? 'bg-indigo-600/20 border-indigo-500/30 text-indigo-300' : 'bg-[#0d0d14] border-[#1e1e2e] text-slate-400 hover:border-[#2d2d45] hover:text-slate-200'}`}
+              className={`settings-language-choice ${(prefs.language ?? 'en') === lang.code ? 'is-selected' : ''}`}
             >
               <span>{lang.nativeLabel}</span>
-              <span className="text-xs text-slate-500">{lang.label}</span>
+              <small>{lang.label}</small>
             </button>
           ))}
-        </div>
-      </Card>
+          </div>
+        </Card>
 
-      <Card className="space-y-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+        <Card className="settings-soft-card settings-update-card">
+          <div className="settings-update-copy">
+            <div className="settings-card-icon">
               <RefreshCw size={14} className={`text-indigo-400 ${updater.state.status === 'checking' ? 'animate-spin' : ''}`} />
             </div>
             <div>
@@ -143,12 +148,11 @@ export function GeneralTab(): React.ReactElement {
           >
             {updater.state.status === 'available' ? t('updater.updateNow') : updater.state.status === 'ready' ? t('updater.restart') : t('updater.checkNow')}
           </Button>
-        </div>
-      </Card>
+        </Card>
 
-      <Card className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-200">{t('generalTab.pollIntervals')}</h3>
-        <div className="grid grid-cols-1 gap-3">
+        <Card className="settings-soft-card settings-poll-card">
+          <div className="settings-card-heading"><Timer size={14} /><h3>{t('generalTab.pollIntervals')}</h3></div>
+          <div className="settings-poll-grid">
           <div>
             <label className="text-xs text-slate-400 mb-1 block">{t('generalTab.systemInterval')}</label>
             <select value={prefs.pollIntervals.system} onChange={(e) => setPrefs((p) => ({ ...p, pollIntervals: { ...p.pollIntervals, system: Number(e.target.value) } }))} className={selectCls}>
@@ -167,19 +171,19 @@ export function GeneralTab(): React.ReactElement {
               {dockerIntervalOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
-        </div>
-      </Card>
+          </div>
+        </Card>
 
-      <Card className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Trash2 size={14} className="text-red-400" />
-          <h3 className="text-sm font-semibold text-red-400">{t('generalTab.dangerZone')}</h3>
-        </div>
-        <p className="text-xs text-slate-500">{t('generalTab.resetConfirm')}</p>
-        <Button variant="danger" size="sm" icon={<Trash2 size={12} />} loading={resetting} onClick={handleReset}>
-          {t('generalTab.resetData')}
-        </Button>
-      </Card>
+        <Card className="settings-soft-card settings-danger-card">
+          <div>
+            <div className="settings-card-heading"><Trash2 size={14} /><h3>{t('generalTab.dangerZone')}</h3></div>
+            <p>{t('generalTab.resetConfirm')}</p>
+          </div>
+          <Button variant="danger" size="sm" icon={<Trash2 size={12} />} loading={resetting} onClick={handleReset}>
+            {t('generalTab.resetData')}
+          </Button>
+        </Card>
+      </div>
     </div>
   )
 }

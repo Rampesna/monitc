@@ -26,7 +26,7 @@ export interface UpdaterState {
 
 type Operation = 'idle' | 'background-check' | 'manual-check' | 'download' | 'install'
 
-const FIRST_CHECK_DELAY_MS = 12_000
+const FIRST_CHECK_DELAY_MS = 5_000
 const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000
 
 let state: UpdaterState = { status: 'idle', currentVersion: '' }

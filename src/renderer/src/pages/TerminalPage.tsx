@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { TerminalSquare, Plus, X, RefreshCw, Server as ServerIcon, Laptop } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Button } from '../components/common/Button'
@@ -22,11 +23,35 @@ interface TerminalTab {
 export function TerminalPage(): React.ReactElement {
   const { t } = useTranslation()
   const { state } = useApp()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const handoffConsumedRef = useRef(false)
   const [tabs, setTabs] = useState<TerminalTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [showSessionPicker, setShowSessionPicker] = useState(false)
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
+  useEffect(() => {
+    if (handoffConsumedRef.current) return
+    const attachedSession = (location.state as {
+      attachedSession?: { sessionId: string; serverId: string; label: string; kind: TerminalKind }
+    } | null)?.attachedSession
+    if (!attachedSession?.sessionId) return
+
+    handoffConsumedRef.current = true
+    const tabId = crypto.randomUUID()
+    setTabs((previous) => [...previous, {
+      id: tabId,
+      label: attachedSession.label,
+      kind: attachedSession.kind,
+      serverId: attachedSession.serverId,
+      sessionId: attachedSession.sessionId,
+      connecting: false
+    }])
+    setActiveTabId(tabId)
+    navigate(location.pathname, { replace: true, state: null })
+  }, [location.pathname, location.state, navigate])
 
   const openSessionPicker = (): void => setShowSessionPicker(true)
 

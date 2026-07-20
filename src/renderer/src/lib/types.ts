@@ -88,6 +88,7 @@ export interface AppPreferences {
     kubernetes: number
   }
   sidebarCollapsed: boolean
+  sidebarPreferenceSet?: boolean
   language: string
 }
 

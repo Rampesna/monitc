@@ -63,7 +63,10 @@
     "active": "Attivo"
   },
   "header": {
-    "selectServer": "Seleziona server..."
+    "selectServer": "Seleziona server...",
+    "searchServers": "Cerca nome, host o utente...",
+    "noServersFound": "Nessun server corrispondente",
+    "manageServers": "Gestisci server"
   },
   "license": {
     "title": "Benvenuto su monitc",
@@ -400,6 +403,11 @@
     "availableDesc": "Stai usando v{{current}}. La versione v{{latest}} è disponibile. Aggiornare?",
     "updateNow": "Aggiorna e riavvia",
     "later": "Più tardi",
+    "laterHint": "Ritrova l’aggiornamento nell’intestazione o in Impostazioni → Generali.",
+    "headerAvailable": "Aggiorna v{{version}}",
+    "headerDownloading": "Download {{percent}}%",
+    "headerReady": "Riavvia per aggiornare",
+    "openUpdateSettings": "Apri impostazioni aggiornamento",
     "downloadingTitle": "Download di v{{version}}…",
     "downloadingDesc": "{{percent}}% completato",
     "downloading": "Download in corso…",
