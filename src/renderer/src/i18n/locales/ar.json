@@ -398,7 +398,7 @@
   "updater": {
     "availableTitle": "تحديث متاح (v{{version}})",
     "availableDesc": "أنت تستخدم v{{current}}. الإصدار v{{latest}} متاح. هل تريد التحديث؟",
-    "updateNow": "تحديث الآن",
+    "updateNow": "تحديث وإعادة تشغيل",
     "later": "لاحقاً",
     "downloadingTitle": "جاري تنزيل v{{version}}…",
     "downloadingDesc": "اكتمل {{percent}}%",
@@ -408,7 +408,18 @@
     "restart": "إعادة التشغيل",
     "errorTitle": "فشل التحديث",
     "errorDesc": "تعذر التحقق من التحديث أو تنزيله.",
-    "retry": "إعادة المحاولة"
+    "retry": "إعادة المحاولة",
+    "installingTitle": "جارٍ تثبيت التحديث (v{{version}})",
+    "installingDesc": "سيُعاد تشغيل monitc تلقائياً بعد قليل.",
+    "installing": "جارٍ التثبيت…",
+    "releaseNotes": "ما الجديد",
+    "settingsTitle": "تحديثات التطبيق",
+    "currentVersion": "الإصدار الحالي: v{{version}}",
+    "lastChecked": "آخر فحص: {{date}}",
+    "upToDate": "أنت تستخدم أحدث إصدار.",
+    "autoCheckEnabled": "يتم التحقق من التحديثات تلقائياً.",
+    "checkNow": "تحقق الآن",
+    "checking": "جارٍ البحث عن تحديثات…"
   },
   "terminal": {
     "title": "Terminal",

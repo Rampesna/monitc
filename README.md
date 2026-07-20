@@ -120,13 +120,13 @@
 
 Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
-**In-app updates:** Packaged builds check GitHub Releases for newer versions every 4 hours. When an update is available, a persistent banner appears in the top-right corner — click **Update now** to download and restart. Releases must include `latest*.yml` and `.blockmap` files (generated automatically by `electron-builder` in CI).
+**One-click in-app updates:** Packaged builds check GitHub Releases shortly after launch and every 4 hours. When an update is available, a persistent banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. You can also check manually from **Settings → General → Application updates**.
 
 | Platform | Format | Architecture |
 |----------|--------|--------------|
 | macOS | `.dmg` | Universal (Apple Silicon + Intel) |
 | Windows | `.exe` NSIS Installer | x64 |
-| Linux | `.AppImage` | arm64 |
+| Linux | `.AppImage` / `.deb` | x64 |
 
 ### macOS (Homebrew)
 
@@ -137,17 +137,17 @@ brew install --cask monitc
 
 ### macOS (Direct download)
 
-Download `monitc-1.2.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
+Download the latest universal `.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
 
 ### Windows
 
-Download `monitc-Setup-1.2.0.exe` from [Releases](../../releases) and run the installer.
+Download the latest NSIS installer (`.exe`) from [Releases](../../releases) and run it.
 
 ### Linux (AppImage)
 
 ```bash
-chmod +x monitc-1.2.0-arm64.AppImage
-./monitc-1.2.0-arm64.AppImage
+chmod +x monitc-*.AppImage
+./monitc-*.AppImage
 ```
 
 ---
@@ -190,6 +190,57 @@ npm run build:win
 # Package for Linux (creates dist/monitc-*.AppImage)
 npm run build:linux
 ```
+
+---
+
+## 🚀 Publishing an Update
+
+Stable updates are published automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) whenever a version tag such as `v1.3.0` is pushed. The workflow:
+
+1. verifies that the tag matches both `package.json` and `package-lock.json`
+2. requires the tag commit to be on `main`
+3. builds all application bundles before packaging
+4. signs and notarizes the universal macOS app
+5. creates the macOS ZIP required by Squirrel.Mac in addition to the DMG
+6. builds Windows NSIS/portable and Linux AppImage/deb packages
+7. validates `latest.yml`, `latest-mac.yml`, and `latest-linux.yml` against the generated packages
+8. publishes all packages, blockmaps, and updater metadata in one GitHub Release
+
+### Required GitHub secrets
+
+Configure these in **Repository Settings → Secrets and variables → Actions** before publishing a tag:
+
+| Secret | Purpose |
+|--------|---------|
+| `MAC_CSC_LINK` | Base64-encoded Developer ID Application `.p12` certificate |
+| `MAC_CSC_KEY_PASSWORD` | Password used when exporting the `.p12` |
+| `APPLE_ID` | Apple Developer account email |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password created at appleid.apple.com |
+| `APPLE_TEAM_ID` | 10-character Apple Developer Team ID |
+| `WIN_CSC_LINK` | Optional base64 Windows signing certificate (`.pfx`) |
+| `WIN_CSC_KEY_PASSWORD` | Optional Windows certificate password |
+
+The release workflow deliberately fails instead of publishing an unsigned macOS update when required signing secrets are missing.
+
+### Release commands
+
+For the already prepared `1.3.0` release after merging to `main`:
+
+```bash
+npm run release:verify -- v1.3.0
+git tag -a v1.3.0 -m "monitc v1.3.0"
+git push origin v1.3.0
+```
+
+For later patch releases, `npm version` updates both package files, creates the release commit, and creates the tag:
+
+```bash
+npm version patch
+npm run release:verify -- "$(git describe --tags --exact-match)"
+git push origin main --follow-tags
+```
+
+CI checks every pull request with [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Production updater logs are written to Electron's platform-specific logs directory as `updater.log`.
 
 ---
 

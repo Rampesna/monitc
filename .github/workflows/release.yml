@@ -5,8 +5,48 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  release-mac:
+  validate:
+    name: Validate release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Require tag commit on main
+        shell: bash
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || {
+            echo "Release tags must point to a commit on main."
+            exit 1
+          }
+
+      - name: Validate version and updater configuration
+        run: node scripts/verify-release.mjs "${{ github.ref_name }}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+  macos:
+    name: Build signed macOS update
+    needs: validate
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,27 +56,54 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Verify macOS signing secrets
+        shell: bash
+        env:
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          missing=0
+          for name in MAC_CSC_LINK MAC_CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!name}" ]; then
+              echo "Missing required GitHub secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS
-        run: npx electron-builder --mac --universal
-        env:
-          # Set to false — notarize manually or add notarization env vars here
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Build renderer and main process
+        run: npm run build
 
-      - name: Upload macOS artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Package, sign, and notarize
+        run: npx electron-builder --mac --publish never -c.forceCodeSigning=true
+        env:
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload macOS release assets
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: release-macos
+          if-no-files-found: error
+          retention-days: 7
+          path: |
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
             dist/*.blockmap
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            dist/latest-mac.yml
 
-  release-windows:
+  windows:
+    name: Build Windows update
+    needs: validate
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,20 +116,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows
-        run: npx electron-builder --win --x64
+      - name: Build renderer and main process
+        run: npm run build
 
-      - name: Upload Windows artifacts
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/*.exe
-            dist/*.yml
-            dist/*.blockmap
+      - name: Package Windows update
+        run: npx electron-builder --win --x64 --publish never
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
 
-  release-linux:
+      - name: Upload Windows release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+
+  linux:
+    name: Build Linux update
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -75,16 +151,46 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build Linux
-        run: npx electron-builder --linux --x64
+      - name: Build renderer and main process
+        run: npm run build
 
-      - name: Upload Linux artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Package Linux update
+        run: npx electron-builder --linux --x64 --publish never
+
+      - name: Upload Linux release assets
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: release-linux
+          if-no-files-found: error
+          retention-days: 7
+          path: |
             dist/*.AppImage
             dist/*.deb
-            dist/*.yml
             dist/*.blockmap
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            dist/latest-linux.yml
+
+  publish:
+    name: Publish GitHub release
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify updater metadata and packages
+        run: node scripts/verify-update-artifacts.mjs release-assets
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          make_latest: ${{ contains(github.ref_name, '-') && 'false' || 'true' }}
+          fail_on_unmatched_files: true
+          files: release-assets/*

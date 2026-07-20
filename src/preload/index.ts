@@ -120,6 +120,7 @@ const monitcAPI = {
     getStatus: (): Promise<unknown> => ipcRenderer.invoke('updater:getStatus'),
     check: (): Promise<unknown> => ipcRenderer.invoke('updater:check'),
     download: (): Promise<boolean> => ipcRenderer.invoke('updater:download'),
+    update: (): Promise<boolean> => ipcRenderer.invoke('updater:update'),
     install: (): Promise<boolean> => ipcRenderer.invoke('updater:install'),
     onStatus: (cb: (state: unknown) => void): (() => void) => {
       const handler = (_: unknown, data: unknown): void => cb(data)

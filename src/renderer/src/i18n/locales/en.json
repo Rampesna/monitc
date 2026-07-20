@@ -452,7 +452,7 @@
   "updater": {
     "availableTitle": "Update available (v{{version}})",
     "availableDesc": "You are on v{{current}}. Version v{{latest}} is available. Would you like to update?",
-    "updateNow": "Update now",
+    "updateNow": "Update & restart",
     "later": "Later",
     "downloadingTitle": "Downloading v{{version}}…",
     "downloadingDesc": "{{percent}}% complete",
@@ -462,7 +462,18 @@
     "restart": "Restart now",
     "errorTitle": "Update failed",
     "errorDesc": "Could not check or download the update.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "installingTitle": "Installing update (v{{version}})",
+    "installingDesc": "monitc will restart automatically in a moment.",
+    "installing": "Installing…",
+    "releaseNotes": "What's new",
+    "settingsTitle": "Application updates",
+    "currentVersion": "Current version: v{{version}}",
+    "lastChecked": "Last checked: {{date}}",
+    "upToDate": "You are using the latest version.",
+    "autoCheckEnabled": "Updates are checked automatically.",
+    "checkNow": "Check now",
+    "checking": "Checking for updates…"
   },
   "export": {
     "button": "Export",

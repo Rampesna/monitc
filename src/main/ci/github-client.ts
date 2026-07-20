@@ -57,7 +57,7 @@ export async function ghListBranches(pat: string, baseUrl: string, owner: string
 
 export async function ghSetSecret(pat: string, baseUrl: string, owner: string, repo: string, secretName: string, secretValue: string): Promise<void> {
   const keyRes = await ghFetch<{ key_id: string; key: string }>(pat, baseUrl, `/repos/${owner}/${repo}/actions/public-key`)
-  const { sodium } = await import('libsodium-wrappers')
+  const { default: sodium } = await import('libsodium-wrappers')
   await sodium.ready
   const keyBytes = sodium.from_base64(keyRes.key, sodium.base64_variants.ORIGINAL)
   const secretBytes = sodium.from_string(secretValue)

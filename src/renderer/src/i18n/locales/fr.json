@@ -398,7 +398,7 @@
   "updater": {
     "availableTitle": "Mise à jour disponible (v{{version}})",
     "availableDesc": "Vous utilisez v{{current}}. La version v{{latest}} est disponible. Mettre à jour ?",
-    "updateNow": "Mettre à jour",
+    "updateNow": "Mettre à jour et redémarrer",
     "later": "Plus tard",
     "downloadingTitle": "Téléchargement de v{{version}}…",
     "downloadingDesc": "{{percent}}% terminé",
@@ -408,7 +408,18 @@
     "restart": "Redémarrer",
     "errorTitle": "Échec de la mise à jour",
     "errorDesc": "Impossible de vérifier ou télécharger la mise à jour.",
-    "retry": "Réessayer"
+    "retry": "Réessayer",
+    "installingTitle": "Installation de la mise à jour (v{{version}})",
+    "installingDesc": "monitc va redémarrer automatiquement.",
+    "installing": "Installation…",
+    "releaseNotes": "Nouveautés",
+    "settingsTitle": "Mises à jour de l'application",
+    "currentVersion": "Version actuelle : v{{version}}",
+    "lastChecked": "Dernière vérification : {{date}}",
+    "upToDate": "Vous utilisez la dernière version.",
+    "autoCheckEnabled": "Les mises à jour sont vérifiées automatiquement.",
+    "checkNow": "Vérifier",
+    "checking": "Recherche de mises à jour…"
   },
   "terminal": {
     "title": "Terminal",

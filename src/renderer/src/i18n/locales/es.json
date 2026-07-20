@@ -398,7 +398,7 @@
   "updater": {
     "availableTitle": "Actualización disponible (v{{version}})",
     "availableDesc": "Usas v{{current}}. La versión v{{latest}} está disponible. ¿Actualizar?",
-    "updateNow": "Actualizar",
+    "updateNow": "Actualizar y reiniciar",
     "later": "Más tarde",
     "downloadingTitle": "Descargando v{{version}}…",
     "downloadingDesc": "{{percent}}% completado",
@@ -408,7 +408,18 @@
     "restart": "Reiniciar",
     "errorTitle": "Error de actualización",
     "errorDesc": "No se pudo comprobar o descargar la actualización.",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "installingTitle": "Instalando actualización (v{{version}})",
+    "installingDesc": "monitc se reiniciará automáticamente.",
+    "installing": "Instalando…",
+    "releaseNotes": "Novedades",
+    "settingsTitle": "Actualizaciones de la aplicación",
+    "currentVersion": "Versión actual: v{{version}}",
+    "lastChecked": "Última comprobación: {{date}}",
+    "upToDate": "Estás usando la última versión.",
+    "autoCheckEnabled": "Las actualizaciones se comprueban automáticamente.",
+    "checkNow": "Comprobar ahora",
+    "checking": "Buscando actualizaciones…"
   },
   "terminal": {
     "title": "Terminal",

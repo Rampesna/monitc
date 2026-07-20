@@ -120,6 +120,26 @@ interface SftpEntry {
   gid: number
 }
 
+type UpdaterStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'installing'
+  | 'uptodate'
+  | 'error'
+
+interface UpdaterState {
+  status: UpdaterStatus
+  currentVersion: string
+  version?: string
+  percent?: number
+  message?: string
+  releaseNotes?: string
+  lastCheckedAt?: number
+}
+
 interface MonitcAPI {
   servers: {
     list: () => Promise<unknown[]>
@@ -191,32 +211,12 @@ interface MonitcAPI {
     close: () => void
   }
   updater: {
-    getStatus: () => Promise<{
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }>
-    check: () => Promise<{
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }>
+    getStatus: () => Promise<UpdaterState>
+    check: () => Promise<UpdaterState>
     download: () => Promise<boolean>
+    update: () => Promise<boolean>
     install: () => Promise<boolean>
-    onStatus: (cb: (state: {
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }) => void) => () => void
+    onStatus: (cb: (state: UpdaterState) => void) => () => void
   }
   aws: {
     accounts: {

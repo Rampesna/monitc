@@ -2,6 +2,9 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
+import { readFileSync } from 'fs'
+
+const packageVersion = (JSON.parse(readFileSync(resolve('package.json'), 'utf8')) as { version: string }).version
 
 export default defineConfig({
   main: {
@@ -23,7 +26,7 @@ export default defineConfig({
     },
     plugins: [react(), tailwindcss()],
     define: {
-      __APP_VERSION__: JSON.stringify('1.0.0')
+      __APP_VERSION__: JSON.stringify(packageVersion)
     },
     build: {
       rollupOptions: {

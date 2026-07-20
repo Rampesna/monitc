@@ -3,6 +3,7 @@ out/
 dist/
 .DS_Store
 *.local
+*.tsbuildinfo
 *.enc
 monitc-license.key
 monitc-license.confirmed

@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Download, RefreshCw, AlertCircle, Sparkles, Loader2 } from 'lucide-react'
+import { Download, RefreshCw, AlertCircle, Sparkles, Loader2, FileText } from 'lucide-react'
 import { useAppUpdater } from '../../hooks/useAppUpdater'
 import { Button } from '../common/Button'
 
 export function UpdateToast(): React.ReactElement | null {
   const { t } = useTranslation()
-  const { state, visible, check, download, install } = useAppUpdater()
+  const { state, visible, check, update, install } = useAppUpdater()
   const [snoozed, setSnoozed] = useState(false)
 
   if (!visible || snoozed) return null
@@ -21,6 +21,8 @@ export function UpdateToast(): React.ReactElement | null {
         return t('updater.downloadingTitle', { version: state.version })
       case 'ready':
         return t('updater.readyTitle', { version: state.version })
+      case 'installing':
+        return t('updater.installingTitle', { version: state.version })
       case 'error':
         return t('updater.errorTitle')
       default:
@@ -39,6 +41,8 @@ export function UpdateToast(): React.ReactElement | null {
         return t('updater.downloadingDesc', { percent: state.percent ?? 0 })
       case 'ready':
         return t('updater.readyDesc')
+      case 'installing':
+        return t('updater.installingDesc')
       case 'error':
         return state.message ?? t('updater.errorDesc')
       default:
@@ -47,7 +51,7 @@ export function UpdateToast(): React.ReactElement | null {
   })()
 
   const handlePrimary = async (): Promise<void> => {
-    if (state.status === 'available') await download()
+    if (state.status === 'available') await update()
     else if (state.status === 'ready') await install()
     else if (state.status === 'error') await check()
   }
@@ -56,6 +60,7 @@ export function UpdateToast(): React.ReactElement | null {
     if (state.status === 'ready') return t('updater.restart')
     if (state.status === 'error') return t('updater.retry')
     if (state.status === 'downloading') return t('updater.downloading')
+    if (state.status === 'installing') return t('updater.installing')
     return t('updater.updateNow')
   })()
 
@@ -70,7 +75,7 @@ export function UpdateToast(): React.ReactElement | null {
         <div className="p-4 space-y-3">
           <div className="flex items-start gap-3">
             <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-indigo-500/15 border border-indigo-500/25 flex items-center justify-center">
-              {state.status === 'downloading' ? (
+              {state.status === 'downloading' || state.status === 'installing' ? (
                 <Loader2 size={16} className="text-indigo-400 animate-spin" />
               ) : state.status === 'error' ? (
                 <AlertCircle size={16} className="text-red-400" />
@@ -93,8 +98,20 @@ export function UpdateToast(): React.ReactElement | null {
             </div>
           )}
 
+          {state.status === 'available' && state.releaseNotes && (
+            <details className="rounded-lg border border-[#2d2d45] bg-[#0d0d14]/70 px-3 py-2">
+              <summary className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none">
+                <FileText size={12} className="text-indigo-400" />
+                {t('updater.releaseNotes')}
+              </summary>
+              <div className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-[11px] leading-relaxed text-slate-400">
+                {state.releaseNotes}
+              </div>
+            </details>
+          )}
+
           <div className="flex items-center gap-2">
-            {state.status !== 'downloading' && (
+            {state.status !== 'downloading' && state.status !== 'installing' && (
               <Button
                 variant="primary"
                 size="sm"

@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Sliders, Trash2 } from 'lucide-react'
+import { Download, RefreshCw, Sliders, Trash2 } from 'lucide-react'
 import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { useApp } from '../../context/AppContext'
 import { LANGUAGES, applyLanguage } from '../../i18n'
 import type { AppPreferences } from '../../lib/types'
+import { useAppUpdater } from '../../hooks/useAppUpdater'
 
 export function GeneralTab(): React.ReactElement {
   const { t } = useTranslation()
@@ -14,6 +15,7 @@ export function GeneralTab(): React.ReactElement {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const updater = useAppUpdater()
 
   const handleSave = async (): Promise<void> => {
     setSaving(true)
@@ -52,6 +54,25 @@ export function GeneralTab(): React.ReactElement {
   ]
 
   const selectCls = "w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+
+  const updaterStatus = (() => {
+    switch (updater.state.status) {
+      case 'checking': return t('updater.checking')
+      case 'available': return t('updater.availableTitle', { version: updater.state.version })
+      case 'downloading': return t('updater.downloadingDesc', { percent: updater.state.percent ?? 0 })
+      case 'ready': return t('updater.readyTitle', { version: updater.state.version })
+      case 'installing': return t('updater.installingDesc')
+      case 'uptodate': return t('updater.upToDate')
+      case 'error': return updater.state.message ?? t('updater.errorDesc')
+      default: return t('updater.autoCheckEnabled')
+    }
+  })()
+
+  const handleUpdaterAction = async (): Promise<void> => {
+    if (updater.state.status === 'available') await updater.update()
+    else if (updater.state.status === 'ready') await updater.install()
+    else await updater.check()
+  }
 
   return (
     <div className="space-y-5">
@@ -94,6 +115,34 @@ export function GeneralTab(): React.ReactElement {
               <span className="text-xs text-slate-500">{lang.label}</span>
             </button>
           ))}
+        </div>
+      </Card>
+
+      <Card className="space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
+              <RefreshCw size={14} className={`text-indigo-400 ${updater.state.status === 'checking' ? 'animate-spin' : ''}`} />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">{t('updater.settingsTitle')}</h3>
+              <p className={`text-xs mt-1 ${updater.state.status === 'error' ? 'text-red-400' : 'text-slate-500'}`}>{updaterStatus}</p>
+              <p className="text-[11px] text-slate-600 mt-1">
+                {t('updater.currentVersion', { version: updater.state.currentVersion || __APP_VERSION__ })}
+                {updater.state.lastCheckedAt ? ` · ${t('updater.lastChecked', { date: new Date(updater.state.lastCheckedAt).toLocaleString() })}` : ''}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant={updater.state.status === 'available' || updater.state.status === 'ready' ? 'primary' : 'secondary'}
+            size="sm"
+            loading={updater.state.status === 'checking' || updater.state.status === 'downloading' || updater.state.status === 'installing'}
+            disabled={updater.state.status === 'downloading' || updater.state.status === 'installing'}
+            icon={updater.state.status === 'available' ? <Download size={12} /> : <RefreshCw size={12} />}
+            onClick={handleUpdaterAction}
+          >
+            {updater.state.status === 'available' ? t('updater.updateNow') : updater.state.status === 'ready' ? t('updater.restart') : t('updater.checkNow')}
+          </Button>
         </div>
       </Card>
 
