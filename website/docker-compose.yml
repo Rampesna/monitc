@@ -1,0 +1,29 @@
+services:
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: monitc-website
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9119:9119"
+    environment:
+      PORT: 9119
+      DATA_DIR: /data
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-https://monitc.talhacan.com}
+      UPDATE_ADMIN_TOKEN: ${UPDATE_ADMIN_TOKEN:?Set UPDATE_ADMIN_TOKEN in .env}
+    volumes:
+      - ./data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9119/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

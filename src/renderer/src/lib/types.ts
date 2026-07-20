@@ -11,6 +11,18 @@ export interface Server {
   isDefault: boolean
 }
 
+export interface SftpEntry {
+  name: string
+  path: string
+  type: 'file' | 'directory' | 'symlink'
+  size: number
+  modifiedAt: number
+  permissions: string
+  mode: number
+  uid: number
+  gid: number
+}
+
 export interface SmtpConfig {
   enabled: boolean
   host: string

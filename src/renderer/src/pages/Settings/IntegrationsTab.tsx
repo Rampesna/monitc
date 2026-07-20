@@ -33,7 +33,13 @@ const inputCls = "w-full bg-[#0d0d14] border border-[#1e1e2e] rounded-lg px-3 py
 
 export function IntegrationsTab(): React.ReactElement {
   const { t } = useTranslation()
-  const [integrations, setIntegrations] = useState<Integrations>({ smtp: null, whatsapp: null, telegram: null })
+  const [integrations, setIntegrations] = useState<Integrations>({
+    smtp: null,
+    whatsapp: null,
+    telegram: null,
+    github: null,
+    gitlab: null
+  })
   const [smtp, setSmtp] = useState<SmtpConfig>(SMTP_DEFAULT)
   const [wa, setWa] = useState<WhatsAppConfig>(WA_DEFAULT)
   const [tg, setTg] = useState<TelegramConfig>(TG_DEFAULT)

@@ -6,30 +6,39 @@ interface MetricGaugeProps {
   label: string
   unit?: string
   size?: 'sm' | 'md' | 'lg'
+  tone?: 'purple' | 'cyan' | 'green'
   className?: string
 }
 
-function getColor(value: number, max: number): string {
+function getColor(value: number, max: number, tone: MetricGaugeProps['tone']): string {
   const pct = (value / max) * 100
   if (pct >= 90) return '#ef4444'
-  if (pct >= 70) return '#f59e0b'
-  return '#6366f1'
+  if (pct >= 78) return '#f2b86b'
+  if (tone === 'cyan') return '#42d5e8'
+  if (tone === 'green') return '#5ce3a3'
+  return '#806bff'
 }
 
-export function MetricGauge({ value, max = 100, label, unit = '%', size = 'md', className = '' }: MetricGaugeProps): React.ReactElement {
+export function MetricGauge({
+  value,
+  max = 100,
+  label,
+  unit = '%',
+  size = 'md',
+  tone = 'purple',
+  className = ''
+}: MetricGaugeProps): React.ReactElement {
   const pct = Math.min(100, (value / max) * 100)
-  const sizePx = size === 'sm' ? 64 : size === 'md' ? 80 : 100
-  const strokeWidth = size === 'sm' ? 6 : 7
+  const sizePx = size === 'sm' ? 62 : size === 'md' ? 82 : 108
+  const strokeWidth = size === 'sm' ? 6 : size === 'md' ? 7 : 8
   const radius = (sizePx - strokeWidth * 2) / 2
   const circumference = 2 * Math.PI * radius
-  const dash = (pct / 100) * circumference * 0.75
-  const gap = circumference * 0.75 - dash
-  const rotation = -225
-  const color = getColor(value, max)
-  const fontSize = size === 'sm' ? 'text-lg' : size === 'md' ? 'text-xl' : 'text-2xl'
+  const dash = (pct / 100) * circumference
+  const color = getColor(value, max, tone)
+  const fontSize = size === 'sm' ? 'text-base' : size === 'md' ? 'text-lg' : 'text-2xl'
 
   return (
-    <div className={`flex flex-col items-center gap-1 ${className}`}>
+    <div className={`metric-gauge flex flex-col items-center ${className}`}>
       <div className="relative" style={{ width: sizePx, height: sizePx }}>
         <svg width={sizePx} height={sizePx} viewBox={`0 0 ${sizePx} ${sizePx}`} className="overflow-visible">
           <circle
@@ -37,11 +46,9 @@ export function MetricGauge({ value, max = 100, label, unit = '%', size = 'md', 
             cy={sizePx / 2}
             r={radius}
             fill="none"
-            stroke="#1e1e2e"
+            stroke="rgba(255, 255, 255, 0.055)"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
-            strokeDasharray={`${circumference * 0.75} ${circumference * 0.25}`}
-            transform={`rotate(${rotation} ${sizePx / 2} ${sizePx / 2})`}
           />
           <circle
             cx={sizePx / 2}
@@ -51,19 +58,18 @@ export function MetricGauge({ value, max = 100, label, unit = '%', size = 'md', 
             stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
-            strokeDasharray={`${dash} ${gap + circumference * 0.25}`}
-            transform={`rotate(${rotation} ${sizePx / 2} ${sizePx / 2})`}
-            style={{ transition: 'stroke-dasharray 0.4s ease' }}
+            strokeDasharray={`${dash} ${circumference - dash}`}
+            transform={`rotate(-90 ${sizePx / 2} ${sizePx / 2})`}
+            style={{ transition: 'stroke-dasharray 0.45s ease, stroke 0.25s ease', filter: `drop-shadow(0 0 4px ${color}33)` }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className={`font-bold ${fontSize}`} style={{ color }}>
-            {Math.round(value)}
+          <span className={`font-semibold leading-none text-slate-100 ${fontSize}`}>
+            {Math.round(value)}<small className="ml-0.5 text-[9px] font-medium text-slate-500">{unit}</small>
           </span>
-          <span className="text-xs text-slate-400">{unit}</span>
+          <span className="mt-1 text-[9px] uppercase tracking-[0.08em] text-slate-500">{label}</span>
         </div>
       </div>
-      <span className="text-xs text-slate-400 font-medium">{label}</span>
     </div>
   )
 }

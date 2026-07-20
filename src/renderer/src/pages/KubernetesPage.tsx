@@ -57,9 +57,9 @@ export function KubernetesPage(): React.ReactElement {
     !search || item.name.includes(search) || item.namespace.includes(search)
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="route-page p-6 space-y-4">
+      <div className="page-heading compact">
+        <div className="page-title-with-icon">
           <Box size={20} className="text-purple-400" />
           <h1 className="text-lg font-semibold text-slate-100">{t('kubernetes.title')}</h1>
         </div>

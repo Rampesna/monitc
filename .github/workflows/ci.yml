@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate locale JSON
+        run: for file in src/renderer/src/i18n/locales/*.json; do jq empty "$file"; done
+
+      - name: Validate release configuration
+        run: npm run release:verify
+
+      - name: Type check
+        run: npx tsc --noEmit -p tsconfig.node.json && npx tsc --noEmit -p tsconfig.web.json
+
+      - name: Build application
+        run: npm run build
+
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Build website
+        run: npm run build --prefix website
+
+      - name: Validate website Compose configuration
+        run: UPDATE_ADMIN_TOKEN=ci-compose-validation docker compose -f website/docker-compose.yml config --quiet

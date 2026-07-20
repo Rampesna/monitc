@@ -186,8 +186,8 @@ export default function K8sManagePage() {
   ]
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 pt-6 pb-0 border-b border-[#1e1e2e]">
+    <div className="route-page flex flex-col h-full">
+      <div className="workspace-header px-6 pt-6 pb-0 border-b border-[#1e1e2e]">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-xl font-bold text-slate-100">{t('k8sManage.title')}</h1>

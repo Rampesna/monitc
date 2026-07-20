@@ -44,34 +44,34 @@ export function AreaChart({
           <defs>
             {series.map((s) => (
               <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={s.color} stopOpacity={0.3} />
+                <stop offset="5%" stopColor={s.color} stopOpacity={0.18} />
                 <stop offset="95%" stopColor={s.color} stopOpacity={0} />
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1e1e2e" vertical={false} />
+          <CartesianGrid strokeDasharray="0" stroke="rgba(255,255,255,.045)" vertical={false} />
           <XAxis
             dataKey={xKey}
-            tick={{ fill: '#475569', fontSize: 11 }}
+            tick={{ fill: '#5f5f6b', fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={xFormatter}
           />
           <YAxis
-            tick={{ fill: '#475569', fontSize: 11 }}
+            tick={{ fill: '#5f5f6b', fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             domain={yDomain}
             tickFormatter={yFormatter}
           />
           <Tooltip
-            contentStyle={{ backgroundColor: '#12121a', border: '1px solid #2d2d45', borderRadius: 8, fontSize: 12 }}
-            labelStyle={{ color: '#94a3b8' }}
-            itemStyle={{ color: '#e2e8f0' }}
+            contentStyle={{ backgroundColor: '#15151e', border: '1px solid rgba(255,255,255,.09)', borderRadius: 10, fontSize: 11, boxShadow: '0 14px 34px rgba(0,0,0,.32)' }}
+            labelStyle={{ color: '#777783' }}
+            itemStyle={{ color: '#d9d9df' }}
             formatter={yFormatter ? (val: unknown) => [yFormatter(val), ''] : undefined}
             labelFormatter={xFormatter}
           />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+          <Legend wrapperStyle={{ fontSize: 10, color: '#777783', paddingTop: 4 }} iconType="circle" iconSize={6} />
           {series.map((s) => (
             <Area
               key={s.key}
@@ -79,10 +79,10 @@ export function AreaChart({
               dataKey={s.key}
               name={s.label}
               stroke={s.color}
-              strokeWidth={2}
+              strokeWidth={2.5}
               fill={`url(#grad-${s.key})`}
               dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
+              activeDot={{ r: 4, strokeWidth: 0, fill: s.color }}
             />
           ))}
         </RechartsArea>

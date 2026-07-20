@@ -18,6 +18,12 @@
 
 ## ✨ Features
 
+### ✦ Soft DevOps Workspace
+- **Focused command center** — a 2×2 live cockpit combines CPU/RAM/Disk gauges, resource history, running containers, and a quick terminal summary
+- **Compact icon rail** — every monitoring and management surface stays one click away without sacrificing working space
+- **Consistent visual system** — graphite surfaces, low-contrast borders, soft depth, and purple/cyan/green status accents are shared across Dashboard, Servers, Docker, Kubernetes, Terminal, SFTP, CI/CD, Deploy, Logs, Alerts, and Settings
+- **Live context everywhere** — the active server and global connection health remain visible in the title bar while navigating
+
 ### 🖥️ Server Monitoring
 - **SSH-based monitoring** — connect to any Linux/macOS server over SSH (password or private key)
 - **Real-time metrics** — CPU, RAM, Disk, Network I/O, Load Average, Uptime with live charts
@@ -59,9 +65,19 @@
 - **Full xterm.js terminal** — true 256-color terminal with resize support
 - **Server picker modal** — select any configured server from a list, with live connection status
 
+### 📁 SFTP File Manager
+- **Remote file browser** — navigate any connected server with breadcrumbs, folder search, multi-select, and familiar double-click navigation
+- **Complete file operations** — create files/folders, rename, recursively copy/cut/paste, recursively delete, and update Unix permissions
+- **Built-in text editor** — open, edit, and save remote UTF-8 text files without leaving monitc (5 MB editor safety limit)
+- **Upload & download** — choose local files with the native system dialog and transfer them through SFTP
+- **Keyboard workflow** — `Ctrl/Cmd+A`, `Ctrl/Cmd+C/X/V`, `F2`, `Delete`, and `Backspace` shortcuts
+- **Connection-aware transfers** — SFTP reuses the monitored server's persistent SSH connection and shared channel queue
+
 ### 🖥️ Servers Overview
 - Dedicated **Servers** page listing all configured servers as cards
-- Live **connection status**, CPU and RAM gauges per server at a glance
+- Live **connection status**, CPU, RAM, and Disk gauges per server at a glance
+- Add a server directly from the Servers page without opening Settings
+- Open a server's SFTP files directly from its card
 
 ### 🔁 CI/CD & Deployments
 - **GitHub Actions** — browse repos and workflows, trigger `workflow_dispatch` events, monitor run status and job steps
@@ -85,7 +101,7 @@
   <tr>
     <td width="50%">
       <img src=".github/assets/dashboard.png" alt="Server Dashboard" />
-      <p align="center"><sub>Server Dashboard — live CPU, RAM, Disk & Network charts</sub></p>
+      <p align="center"><sub>Command center — resources, activity, containers & quick terminal</sub></p>
     </td>
     <td width="50%">
       <img src=".github/assets/k8s.png" alt="Kubernetes Monitor" />
@@ -110,13 +126,13 @@
 
 Pre-built releases are available on the [GitHub Releases](../../releases) page.
 
-**In-app updates:** Packaged builds check GitHub Releases for newer versions every 4 hours. When an update is available, a persistent banner appears in the top-right corner — click **Update now** to download and restart. Releases must include `latest*.yml` and `.blockmap` files (generated automatically by `electron-builder` in CI).
+**One-click in-app updates:** Packaged builds check the official `monitc.talhacan.com` update feed shortly after launch and every 4 hours. When an update is available, a persistent banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. You can also check manually from **Settings → General → Application updates**.
 
 | Platform | Format | Architecture |
 |----------|--------|--------------|
 | macOS | `.dmg` | Universal (Apple Silicon + Intel) |
 | Windows | `.exe` NSIS Installer | x64 |
-| Linux | `.AppImage` | arm64 |
+| Linux | `.AppImage` / `.deb` | x64 |
 
 ### macOS (Homebrew)
 
@@ -127,17 +143,17 @@ brew install --cask monitc
 
 ### macOS (Direct download)
 
-Download `monitc-1.2.0-universal.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
+Download the latest universal `.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
 
 ### Windows
 
-Download `monitc-Setup-1.2.0.exe` from [Releases](../../releases) and run the installer.
+Download the latest NSIS installer (`.exe`) from [Releases](../../releases) and run it.
 
 ### Linux (AppImage)
 
 ```bash
-chmod +x monitc-1.2.0-arm64.AppImage
-./monitc-1.2.0-arm64.AppImage
+chmod +x monitc-*.AppImage
+./monitc-*.AppImage
 ```
 
 ---
@@ -183,9 +199,65 @@ npm run build:linux
 
 ---
 
+## 🚀 Publishing an Update
+
+Stable updates are published automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) whenever a version tag such as `v1.3.0` is pushed. The workflow:
+
+1. verifies that the tag matches both `package.json` and `package-lock.json`
+2. requires the tag commit to be on `main`
+3. builds all application bundles before packaging
+4. signs and notarizes the universal macOS app
+5. creates the macOS ZIP required by Squirrel.Mac in addition to the DMG
+6. builds Windows NSIS/portable and Linux AppImage/deb packages
+7. validates `latest.yml`, `latest-mac.yml`, and `latest-linux.yml` against the generated packages
+8. publishes all packages, blockmaps, and updater metadata in one GitHub Release
+9. uploads the verified stable release to `https://monitc.talhacan.com/updates`, which is the production feed used by installed applications
+
+### Required GitHub secrets
+
+Configure these in **Repository Settings → Secrets and variables → Actions** before publishing a tag:
+
+| Secret | Purpose |
+|--------|---------|
+| `MAC_CSC_LINK` | Base64-encoded Developer ID Application `.p12` certificate |
+| `MAC_CSC_KEY_PASSWORD` | Password used when exporting the `.p12` |
+| `APPLE_ID` | Apple Developer account email |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password created at appleid.apple.com |
+| `APPLE_TEAM_ID` | 10-character Apple Developer Team ID |
+| `WIN_CSC_LINK` | Optional base64 Windows signing certificate (`.pfx`) |
+| `WIN_CSC_KEY_PASSWORD` | Optional Windows certificate password |
+| `UPDATE_SERVER_URL` | Production website origin: `https://monitc.talhacan.com` |
+| `UPDATE_ADMIN_TOKEN` | Long random token shared with the protected release upload API |
+
+The release workflow deliberately fails instead of publishing an unsigned macOS update when required signing secrets are missing.
+
+### Release commands
+
+For the already prepared `1.3.0` release after merging to `main`:
+
+```bash
+npm run release:verify -- v1.3.0
+git tag -a v1.3.0 -m "monitc v1.3.0"
+git push origin v1.3.0
+```
+
+For later patch releases, `npm version` updates both package files, creates the release commit, and creates the tag:
+
+```bash
+npm version patch
+npm run release:verify -- "$(git describe --tags --exact-match)"
+git push origin main --follow-tags
+```
+
+CI checks every pull request with [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Production updater logs are written to Electron's platform-specific logs directory as `updater.log`.
+
+The Dockerized React landing page and release service live in [`website/`](website/). It serves the public website, the protected `/admin` release panel, and the static `/updates` feed from one container on port `9119`. Release files persist in `website/data` and are not committed to Git.
+
+---
+
 ## 🔧 Adding a Server
 
-1. Open **Settings → Servers**
+1. Open **Servers** from the sidebar (or use **Settings → Servers**)
 2. Click **Add Server**
 3. Fill in: Host/IP, port (default 22), username, auth method
 4. Click **Test Connection** — if it succeeds, click **Save**
@@ -193,9 +265,19 @@ npm run build:linux
 
 ### SSH Key Authentication
 
-You can provide either:
-- **PEM key content** — paste the full `-----BEGIN OPENSSH PRIVATE KEY-----` block
-- **Key file path** — absolute path to your private key file (e.g. `~/.ssh/id_rsa`)
+Paste the full private key content (for example, a `-----BEGIN OPENSSH PRIVATE KEY-----` block). If the key is encrypted, enter its passphrase in the separate field.
+
+---
+
+## 📁 Managing Files with SFTP
+
+1. Click **Files** in the sidebar, or click the folder icon on a server card
+2. Select the target server from the picker; monitc connects automatically if needed
+3. Double-click folders to navigate and files to open the built-in editor
+4. Use the toolbar for create, upload/download, copy/cut/paste, rename, permissions, and delete
+5. Multi-select with `Ctrl/Cmd+click` or the checkboxes; use the breadcrumb to jump to a parent folder
+
+Copy and delete operations support non-empty directories recursively. Downloads currently target individual files, while uploads support selecting multiple local files. Remote editor reads are limited to 5 MB to keep the desktop UI responsive.
 
 ---
 
@@ -269,6 +351,7 @@ src/
 │   ├── store/              # Plain JSON persistence (monitc-data.json)
 │   ├── ssh/                # Persistent multiplexed SSH connection pool
 │   │   ├── ssh-manager.ts          # Single Client per server, channel queue, health check
+│   │   ├── sftp-manager.ts         # Remote file CRUD, recursive copy/delete, transfer helpers
 │   │   ├── ssh-commands.ts
 │   │   ├── ssh-terminal-manager.ts
 │   │   ├── k8s-management-commands.ts
@@ -290,7 +373,8 @@ src/
         ├── i18n/           # i18next + 7 locale files
         ├── context/        # AppContext (global state + IPC listeners)
         ├── components/
-        │   └── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
+        │   ├── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
+        │   └── servers/    # Reusable add/edit server form
         ├── pages/          # Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …
         └── hooks/          # useMetricsHistory and other custom hooks
 ```
@@ -300,6 +384,8 @@ src/
 | Channel | Direction | Description |
 |---------|-----------|-------------|
 | `servers:list/add/update/remove/test` | Renderer → Main | SSH server CRUD |
+| `sftp:list/read/write/mkdir/rename/remove/paste/chmod` | Renderer → Main | SFTP file management |
+| `sftp:upload/download` | Renderer → Main | Native-dialog SFTP transfers |
 | `monitor:start/stop/status` | Renderer → Main | Start/stop metric polling |
 | `metrics:update` | Main → Renderer | Live metric push |
 | `metrics:history` | Renderer → Main | SQLite history query |

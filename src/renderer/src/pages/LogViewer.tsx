@@ -105,9 +105,9 @@ export function LogViewer(): React.ReactElement {
   const activeTab = tabs.find((t) => t.id === activeTabId)
 
   return (
-    <div className="flex flex-col h-full p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="route-page flex flex-col h-full p-6 space-y-4">
+      <div className="page-heading compact">
+        <div className="page-title-with-icon">
           <ScrollText size={20} className="text-green-400" />
           <h1 className="text-lg font-semibold text-slate-100">{t('logs.title')}</h1>
         </div>

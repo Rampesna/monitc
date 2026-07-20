@@ -67,9 +67,9 @@ export function DockerPage(): React.ReactElement {
   }
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="route-page p-6 space-y-4">
+      <div className="page-heading compact">
+        <div className="page-title-with-icon">
           <Container size={20} className="text-blue-400" />
           <h1 className="text-lg font-semibold text-slate-100">{t('docker.title')}</h1>
         </div>

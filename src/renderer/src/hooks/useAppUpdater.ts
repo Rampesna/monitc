@@ -6,6 +6,7 @@ export type UpdaterStatus =
   | 'available'
   | 'downloading'
   | 'ready'
+  | 'installing'
   | 'uptodate'
   | 'error'
 
@@ -16,15 +17,17 @@ export interface UpdaterState {
   percent?: number
   message?: string
   releaseNotes?: string
+  lastCheckedAt?: number
 }
 
-const VISIBLE_STATUSES: UpdaterStatus[] = ['available', 'downloading', 'ready', 'error']
+const VISIBLE_STATUSES: UpdaterStatus[] = ['available', 'downloading', 'ready', 'installing', 'error']
 
 export function useAppUpdater(): {
   state: UpdaterState
   visible: boolean
   check: () => Promise<void>
   download: () => Promise<void>
+  update: () => Promise<void>
   install: () => Promise<void>
 } {
   const [state, setState] = useState<UpdaterState>({
@@ -46,11 +49,15 @@ export function useAppUpdater(): {
     await window.monitcAPI.updater.download()
   }, [])
 
+  const update = useCallback(async () => {
+    await window.monitcAPI.updater.update()
+  }, [])
+
   const install = useCallback(async () => {
     await window.monitcAPI.updater.install()
   }, [])
 
   const visible = VISIBLE_STATUSES.includes(state.status)
 
-  return { state, visible, check, download, install }
+  return { state, visible, check, download, update, install }
 }

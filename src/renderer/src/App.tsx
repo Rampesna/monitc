@@ -18,6 +18,7 @@ const K8sManagePage = lazy(() => import('./pages/K8sManagePage'))
 const CICDPage = lazy(() => import('./pages/CICDPage'))
 const DeployPage = lazy(() => import('./pages/DeployPage'))
 const TerminalPage = lazy(() => import('./pages/TerminalPage'))
+const SftpPage = lazy(() => import('./pages/SftpPage'))
 
 function PageLoader() {
   return (
@@ -58,6 +59,7 @@ function AppInner(): React.ReactElement {
           <Route path="cicd" element={<Suspense fallback={<PageLoader />}><CICDPage /></Suspense>} />
           <Route path="deploy" element={<Suspense fallback={<PageLoader />}><DeployPage /></Suspense>} />
           <Route path="terminal" element={<Suspense fallback={<PageLoader />}><TerminalPage /></Suspense>} />
+          <Route path="sftp" element={<Suspense fallback={<PageLoader />}><SftpPage /></Suspense>} />
           <Route path="logs" element={<LogViewer />} />
           <Route path="alerts" element={<AlertsPage />} />
           <Route path="settings" element={<SettingsLayout />} />

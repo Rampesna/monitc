@@ -108,6 +108,38 @@ interface MetricsHistoryPoint {
   uptime: string
 }
 
+interface SftpEntry {
+  name: string
+  path: string
+  type: 'file' | 'directory' | 'symlink'
+  size: number
+  modifiedAt: number
+  permissions: string
+  mode: number
+  uid: number
+  gid: number
+}
+
+type UpdaterStatus =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'ready'
+  | 'installing'
+  | 'uptodate'
+  | 'error'
+
+interface UpdaterState {
+  status: UpdaterStatus
+  currentVersion: string
+  version?: string
+  percent?: number
+  message?: string
+  releaseNotes?: string
+  lastCheckedAt?: number
+}
+
 interface MonitcAPI {
   servers: {
     list: () => Promise<unknown[]>
@@ -115,6 +147,18 @@ interface MonitcAPI {
     update: (server: unknown) => Promise<unknown>
     remove: (serverId: string) => Promise<boolean>
     testConnection: (server: unknown) => Promise<{ success: boolean; error?: string; latency?: number }>
+  }
+  sftp: {
+    list: (serverId: string, path: string) => Promise<SftpEntry[]>
+    read: (serverId: string, path: string) => Promise<{ content: string; size: number }>
+    write: (serverId: string, path: string, content: string) => Promise<boolean>
+    mkdir: (serverId: string, path: string) => Promise<boolean>
+    rename: (serverId: string, source: string, destination: string) => Promise<boolean>
+    remove: (serverId: string, paths: string[]) => Promise<boolean>
+    paste: (serverId: string, sources: string[], destination: string, move: boolean) => Promise<boolean>
+    chmod: (serverId: string, path: string, mode: number) => Promise<boolean>
+    upload: (serverId: string, directory: string) => Promise<{ canceled: boolean; uploaded: number }>
+    download: (serverId: string, path: string) => Promise<{ canceled: boolean; filePath?: string }>
   }
   monitor: {
     start: (serverId: string) => Promise<{ success: boolean; error?: string }>
@@ -167,32 +211,12 @@ interface MonitcAPI {
     close: () => void
   }
   updater: {
-    getStatus: () => Promise<{
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }>
-    check: () => Promise<{
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }>
+    getStatus: () => Promise<UpdaterState>
+    check: () => Promise<UpdaterState>
     download: () => Promise<boolean>
+    update: () => Promise<boolean>
     install: () => Promise<boolean>
-    onStatus: (cb: (state: {
-      status: string
-      currentVersion: string
-      version?: string
-      percent?: number
-      message?: string
-      releaseNotes?: string
-    }) => void) => () => void
+    onStatus: (cb: (state: UpdaterState) => void) => () => void
   }
   aws: {
     accounts: {

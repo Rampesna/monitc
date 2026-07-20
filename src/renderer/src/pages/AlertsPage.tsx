@@ -89,9 +89,9 @@ export function AlertsPage(): React.ReactElement {
   }
 
   return (
-    <div className="p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="route-page p-6 space-y-5">
+      <div className="page-heading compact">
+        <div className="page-title-with-icon">
           <Bell size={20} className="text-amber-400" />
           <h1 className="text-lg font-semibold text-slate-100">{t('alerts.title')}</h1>
           {state.recentAlerts.length > 0 && (

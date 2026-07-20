@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Plus, Cpu, MemoryStick } from 'lucide-react'
+import { Server, Plus, FolderOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
@@ -8,11 +8,13 @@ import { StatusDot } from '../components/common/StatusDot'
 import { MetricGauge } from '../components/common/MetricGauge'
 import { Button } from '../components/common/Button'
 import type { ConnectionState, SystemMetrics } from '../lib/types'
+import { ServerFormModal } from '../components/servers/ServerFormModal'
 
 export function ServersPage(): React.ReactElement {
   const { t } = useTranslation()
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
+  const [addOpen, setAddOpen] = useState(false)
 
   if (state.servers.length === 0) {
     return (
@@ -24,9 +26,10 @@ export function ServersPage(): React.ReactElement {
           <h2 className="text-lg font-semibold text-slate-300 mb-1">{t('dashboard.noServers')}</h2>
           <p className="text-slate-500 text-sm">{t('dashboard.addServer')}</p>
         </div>
-        <Button variant="primary" icon={<Plus size={14} />} onClick={() => navigate('/settings?tab=servers')}>
+        <Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>
           {t('serversTab.addServer')}
         </Button>
+        <ServerFormModal open={addOpen} onClose={() => setAddOpen(false)} />
       </div>
     )
   }
@@ -38,10 +41,14 @@ export function ServersPage(): React.ReactElement {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Server size={20} className="text-indigo-400" />
-        <h1 className="text-lg font-semibold text-slate-100">{t('nav.servers')}</h1>
+    <div className="servers-page p-6">
+      <div className="page-heading">
+        <div>
+          <p className="section-eyebrow">INFRASTRUCTURE</p>
+          <h1>{t('nav.servers')}</h1>
+          <p>{t('dashboard.subtitle')}</p>
+        </div>
+        <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>{t('serversTab.addServer')}</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -56,11 +63,11 @@ export function ServersPage(): React.ReactElement {
               key={server.id}
               hoverable
               onClick={() => handleServerClick(server.id)}
-              className={`flex flex-col gap-3 ${isSelected ? 'ring-1 ring-indigo-500/50' : ''}`}
+              className={`server-card flex flex-col gap-4 ${isSelected ? 'is-selected' : ''}`}
             >
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-indigo-600/30' : 'bg-indigo-600/20'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="server-card-icon">
                     <Server size={14} className="text-indigo-400" />
                   </div>
                   <div>
@@ -74,28 +81,27 @@ export function ServersPage(): React.ReactElement {
                       {t('servers.active')}
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      dispatch({ type: 'SELECT_SERVER', serverId: server.id })
+                      navigate(`/sftp?server=${server.id}`)
+                    }}
+                    className="server-files-button"
+                    title={t('sftp.openFiles')}
+                  >
+                    <FolderOpen size={14} />
+                  </button>
                   <StatusDot status={connStatus} size="sm" />
                 </div>
               </div>
 
               {latest ? (
-                <div className="flex items-center justify-around pt-2 border-t border-[#1e1e2e]">
-                  <div className="flex flex-col items-center gap-0.5">
-                    <Cpu size={12} className="text-slate-500" />
-                    <span className="text-xs text-slate-500">{t('dashboard.cpu')}</span>
-                    <span className={`text-sm font-bold ${latest.cpu.percent > 80 ? 'text-red-400' : latest.cpu.percent > 60 ? 'text-amber-400' : 'text-slate-200'}`}>
-                      {Math.round(latest.cpu.percent)}%
-                    </span>
-                  </div>
-                  <div className="flex flex-col items-center gap-0.5">
-                    <MemoryStick size={12} className="text-slate-500" />
-                    <span className="text-xs text-slate-500">{t('dashboard.ram')}</span>
-                    <span className={`text-sm font-bold ${latest.memory.percent > 80 ? 'text-red-400' : latest.memory.percent > 60 ? 'text-amber-400' : 'text-slate-200'}`}>
-                      {latest.memory.percent}%
-                    </span>
-                  </div>
-                  <MetricGauge value={latest.cpu.percent} label={t('dashboard.cpu')} size="sm" />
-                  <MetricGauge value={latest.memory.percent} label={t('dashboard.ram')} size="sm" />
+                <div className="server-metrics">
+                  <MetricGauge value={latest.cpu.percent} label={t('dashboard.cpu')} tone="purple" size="md" />
+                  <MetricGauge value={latest.memory.percent} label={t('dashboard.ram')} tone="cyan" size="md" />
+                  <MetricGauge value={latest.disk.find((disk) => disk.mountpoint === '/')?.percent ?? 0} label={t('dashboard.disk')} tone="green" size="md" />
                 </div>
               ) : (
                 <div className="flex items-center justify-center py-4 border-t border-[#1e1e2e]">
@@ -108,6 +114,7 @@ export function ServersPage(): React.ReactElement {
           )
         })}
       </div>
+      <ServerFormModal open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )
 }
