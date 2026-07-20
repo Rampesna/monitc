@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Plus, Cpu, MemoryStick } from 'lucide-react'
+import { Server, Plus, Cpu, MemoryStick, FolderOpen } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
@@ -8,11 +8,13 @@ import { StatusDot } from '../components/common/StatusDot'
 import { MetricGauge } from '../components/common/MetricGauge'
 import { Button } from '../components/common/Button'
 import type { ConnectionState, SystemMetrics } from '../lib/types'
+import { ServerFormModal } from '../components/servers/ServerFormModal'
 
 export function ServersPage(): React.ReactElement {
   const { t } = useTranslation()
   const { state, dispatch } = useApp()
   const navigate = useNavigate()
+  const [addOpen, setAddOpen] = useState(false)
 
   if (state.servers.length === 0) {
     return (
@@ -24,9 +26,10 @@ export function ServersPage(): React.ReactElement {
           <h2 className="text-lg font-semibold text-slate-300 mb-1">{t('dashboard.noServers')}</h2>
           <p className="text-slate-500 text-sm">{t('dashboard.addServer')}</p>
         </div>
-        <Button variant="primary" icon={<Plus size={14} />} onClick={() => navigate('/settings?tab=servers')}>
+        <Button variant="primary" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>
           {t('serversTab.addServer')}
         </Button>
+        <ServerFormModal open={addOpen} onClose={() => setAddOpen(false)} />
       </div>
     )
   }
@@ -39,9 +42,12 @@ export function ServersPage(): React.ReactElement {
 
   return (
     <div className="p-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Server size={20} className="text-indigo-400" />
-        <h1 className="text-lg font-semibold text-slate-100">{t('nav.servers')}</h1>
+      <div className="flex items-center justify-between gap-3 mb-6">
+        <div className="flex items-center gap-3">
+          <Server size={20} className="text-indigo-400" />
+          <h1 className="text-lg font-semibold text-slate-100">{t('nav.servers')}</h1>
+        </div>
+        <Button variant="primary" size="sm" icon={<Plus size={14} />} onClick={() => setAddOpen(true)}>{t('serversTab.addServer')}</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -74,6 +80,18 @@ export function ServersPage(): React.ReactElement {
                       {t('servers.active')}
                     </span>
                   )}
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      dispatch({ type: 'SELECT_SERVER', serverId: server.id })
+                      navigate(`/sftp?server=${server.id}`)
+                    }}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-300 hover:bg-indigo-500/10 transition-colors"
+                    title={t('sftp.openFiles')}
+                  >
+                    <FolderOpen size={14} />
+                  </button>
                   <StatusDot status={connStatus} size="sm" />
                 </div>
               </div>
@@ -108,6 +126,7 @@ export function ServersPage(): React.ReactElement {
           )
         })}
       </div>
+      <ServerFormModal open={addOpen} onClose={() => setAddOpen(false)} />
     </div>
   )
 }

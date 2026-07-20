@@ -59,9 +59,19 @@
 - **Full xterm.js terminal** — true 256-color terminal with resize support
 - **Server picker modal** — select any configured server from a list, with live connection status
 
+### 📁 SFTP File Manager
+- **Remote file browser** — navigate any connected server with breadcrumbs, folder search, multi-select, and familiar double-click navigation
+- **Complete file operations** — create files/folders, rename, recursively copy/cut/paste, recursively delete, and update Unix permissions
+- **Built-in text editor** — open, edit, and save remote UTF-8 text files without leaving monitc (5 MB editor safety limit)
+- **Upload & download** — choose local files with the native system dialog and transfer them through SFTP
+- **Keyboard workflow** — `Ctrl/Cmd+A`, `Ctrl/Cmd+C/X/V`, `F2`, `Delete`, and `Backspace` shortcuts
+- **Connection-aware transfers** — SFTP reuses the monitored server's persistent SSH connection and shared channel queue
+
 ### 🖥️ Servers Overview
 - Dedicated **Servers** page listing all configured servers as cards
 - Live **connection status**, CPU and RAM gauges per server at a glance
+- Add a server directly from the Servers page without opening Settings
+- Open a server's SFTP files directly from its card
 
 ### 🔁 CI/CD & Deployments
 - **GitHub Actions** — browse repos and workflows, trigger `workflow_dispatch` events, monitor run status and job steps
@@ -185,7 +195,7 @@ npm run build:linux
 
 ## 🔧 Adding a Server
 
-1. Open **Settings → Servers**
+1. Open **Servers** from the sidebar (or use **Settings → Servers**)
 2. Click **Add Server**
 3. Fill in: Host/IP, port (default 22), username, auth method
 4. Click **Test Connection** — if it succeeds, click **Save**
@@ -193,9 +203,19 @@ npm run build:linux
 
 ### SSH Key Authentication
 
-You can provide either:
-- **PEM key content** — paste the full `-----BEGIN OPENSSH PRIVATE KEY-----` block
-- **Key file path** — absolute path to your private key file (e.g. `~/.ssh/id_rsa`)
+Paste the full private key content (for example, a `-----BEGIN OPENSSH PRIVATE KEY-----` block). If the key is encrypted, enter its passphrase in the separate field.
+
+---
+
+## 📁 Managing Files with SFTP
+
+1. Click **Files** in the sidebar, or click the folder icon on a server card
+2. Select the target server from the picker; monitc connects automatically if needed
+3. Double-click folders to navigate and files to open the built-in editor
+4. Use the toolbar for create, upload/download, copy/cut/paste, rename, permissions, and delete
+5. Multi-select with `Ctrl/Cmd+click` or the checkboxes; use the breadcrumb to jump to a parent folder
+
+Copy and delete operations support non-empty directories recursively. Downloads currently target individual files, while uploads support selecting multiple local files. Remote editor reads are limited to 5 MB to keep the desktop UI responsive.
 
 ---
 
@@ -269,6 +289,7 @@ src/
 │   ├── store/              # Plain JSON persistence (monitc-data.json)
 │   ├── ssh/                # Persistent multiplexed SSH connection pool
 │   │   ├── ssh-manager.ts          # Single Client per server, channel queue, health check
+│   │   ├── sftp-manager.ts         # Remote file CRUD, recursive copy/delete, transfer helpers
 │   │   ├── ssh-commands.ts
 │   │   ├── ssh-terminal-manager.ts
 │   │   ├── k8s-management-commands.ts
@@ -290,7 +311,8 @@ src/
         ├── i18n/           # i18next + 7 locale files
         ├── context/        # AppContext (global state + IPC listeners)
         ├── components/
-        │   └── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
+        │   ├── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
+        │   └── servers/    # Reusable add/edit server form
         ├── pages/          # Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …
         └── hooks/          # useMetricsHistory and other custom hooks
 ```
@@ -300,6 +322,8 @@ src/
 | Channel | Direction | Description |
 |---------|-----------|-------------|
 | `servers:list/add/update/remove/test` | Renderer → Main | SSH server CRUD |
+| `sftp:list/read/write/mkdir/rename/remove/paste/chmod` | Renderer → Main | SFTP file management |
+| `sftp:upload/download` | Renderer → Main | Native-dialog SFTP transfers |
 | `monitor:start/stop/status` | Renderer → Main | Start/stop metric polling |
 | `metrics:update` | Main → Renderer | Live metric push |
 | `metrics:history` | Renderer → Main | SQLite history query |

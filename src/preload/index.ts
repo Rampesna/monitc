@@ -12,6 +12,19 @@ const monitcAPI = {
     testConnection: (server: unknown): Promise<{ success: boolean; error?: string; latency?: number }> =>
       ipcRenderer.invoke('servers:test', server)
   },
+  sftp: {
+    list: (serverId: string, path: string): Promise<unknown[]> => ipcRenderer.invoke('sftp:list', serverId, path),
+    read: (serverId: string, path: string): Promise<{ content: string; size: number }> => ipcRenderer.invoke('sftp:read', serverId, path),
+    write: (serverId: string, path: string, content: string): Promise<boolean> => ipcRenderer.invoke('sftp:write', serverId, path, content),
+    mkdir: (serverId: string, path: string): Promise<boolean> => ipcRenderer.invoke('sftp:mkdir', serverId, path),
+    rename: (serverId: string, source: string, destination: string): Promise<boolean> => ipcRenderer.invoke('sftp:rename', serverId, source, destination),
+    remove: (serverId: string, paths: string[]): Promise<boolean> => ipcRenderer.invoke('sftp:remove', serverId, paths),
+    paste: (serverId: string, sources: string[], destination: string, move: boolean): Promise<boolean> =>
+      ipcRenderer.invoke('sftp:paste', serverId, sources, destination, move),
+    chmod: (serverId: string, path: string, mode: number): Promise<boolean> => ipcRenderer.invoke('sftp:chmod', serverId, path, mode),
+    upload: (serverId: string, directory: string): Promise<{ canceled: boolean; uploaded: number }> => ipcRenderer.invoke('sftp:upload', serverId, directory),
+    download: (serverId: string, path: string): Promise<{ canceled: boolean; filePath?: string }> => ipcRenderer.invoke('sftp:download', serverId, path)
+  },
   monitor: {
     start: (serverId: string): Promise<{ success: boolean; error?: string }> =>
       ipcRenderer.invoke('monitor:start', serverId),

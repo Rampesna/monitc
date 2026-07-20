@@ -56,7 +56,8 @@
     "logs": "Registri",
     "alerts": "Avvisi",
     "settings": "Impostazioni",
-    "terminal": "Terminal"
+    "terminal": "Terminal",
+    "files": "File"
   },
   "servers": {
     "active": "Attivo"

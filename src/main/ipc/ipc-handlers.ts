@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, dialog, type OpenDialogOptions } from 'electron'
 import { sshManager } from '../ssh/ssh-manager'
 import { systemMonitor } from '../monitors/system-monitor'
 import { dockerMonitor } from '../monitors/docker-monitor'
@@ -16,6 +16,8 @@ import type { AppData, Server, ConnectionStatus } from '../store/types'
 import { app } from 'electron'
 import { COMMANDS } from '../ssh/ssh-commands'
 import crypto from 'crypto'
+import path from 'path'
+import { sftpManager } from '../ssh/sftp-manager'
 
 let appData: AppData
 
@@ -145,6 +147,81 @@ export function setupIpcHandlers(): void {
 
   ipcMain.handle('servers:test', async (_, server: Server) => {
     return sshManager.testConnection(server)
+  })
+
+  const ensureSftpConnection = async (serverId: string): Promise<void> => {
+    const server = appData.servers.find((item) => item.id === serverId)
+    if (!server) throw new Error('Server not found')
+    if (sshManager.getStatus(serverId) !== 'connected') await sshManager.connect(server)
+  }
+
+  ipcMain.handle('sftp:list', async (_, serverId: string, remotePath: string) => {
+    await ensureSftpConnection(serverId)
+    return sftpManager.list(serverId, remotePath)
+  })
+
+  ipcMain.handle('sftp:read', async (_, serverId: string, remotePath: string) => {
+    await ensureSftpConnection(serverId)
+    return sftpManager.readFile(serverId, remotePath)
+  })
+
+  ipcMain.handle('sftp:write', async (_, serverId: string, remotePath: string, content: string) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.writeFile(serverId, remotePath, content)
+    return true
+  })
+
+  ipcMain.handle('sftp:mkdir', async (_, serverId: string, remotePath: string) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.createDirectory(serverId, remotePath)
+    return true
+  })
+
+  ipcMain.handle('sftp:rename', async (_, serverId: string, source: string, destination: string) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.rename(serverId, source, destination)
+    return true
+  })
+
+  ipcMain.handle('sftp:remove', async (_, serverId: string, remotePaths: string[]) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.remove(serverId, remotePaths)
+    return true
+  })
+
+  ipcMain.handle('sftp:paste', async (_, serverId: string, sources: string[], destination: string, move: boolean) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.paste(serverId, sources, destination, move)
+    return true
+  })
+
+  ipcMain.handle('sftp:chmod', async (_, serverId: string, remotePath: string, mode: number) => {
+    await ensureSftpConnection(serverId)
+    await sftpManager.chmod(serverId, remotePath, mode)
+    return true
+  })
+
+  ipcMain.handle('sftp:upload', async (_, serverId: string, remoteDirectory: string) => {
+    await ensureSftpConnection(serverId)
+    const owner = getWin()
+    const options: OpenDialogOptions = { properties: ['openFile', 'multiSelections'] }
+    const result = owner ? await dialog.showOpenDialog(owner, options) : await dialog.showOpenDialog(options)
+    if (result.canceled) return { canceled: true, uploaded: 0 }
+    for (const localPath of result.filePaths) {
+      const remotePath = path.posix.join(remoteDirectory, path.basename(localPath))
+      await sftpManager.uploadFile(serverId, localPath, remotePath)
+    }
+    return { canceled: false, uploaded: result.filePaths.length }
+  })
+
+  ipcMain.handle('sftp:download', async (_, serverId: string, remotePath: string) => {
+    await ensureSftpConnection(serverId)
+    const owner = getWin()
+    const options = { defaultPath: path.posix.basename(remotePath) }
+    const result = owner ? await dialog.showSaveDialog(owner, options) : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return { canceled: true }
+    await sftpManager.downloadFile(serverId, remotePath, result.filePath)
+    return { canceled: false, filePath: result.filePath }
   })
 
   ipcMain.handle('monitor:start', async (_, serverId: string) => {

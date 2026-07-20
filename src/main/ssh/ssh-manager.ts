@@ -1,4 +1,4 @@
-import { Client, ConnectConfig } from 'ssh2'
+import { Client, ConnectConfig, SFTPWrapper } from 'ssh2'
 import { EventEmitter } from 'events'
 import type { Server } from '../store/types'
 
@@ -135,6 +135,29 @@ export class SSHManager extends EventEmitter {
       return Promise.reject(new Error(`Server ${serverId} is not connected`))
     }
     return this._acquireChannel(entry, () => this._exec(entry.client, command))
+  }
+
+  /**
+   * Run an operation in a short-lived SFTP subsystem over the existing SSH
+   * connection. SFTP channels share the same concurrency budget as exec
+   * channels, so file operations cannot starve monitoring requests.
+   */
+  withSftp<T>(serverId: string, operation: (sftp: SFTPWrapper) => Promise<T>): Promise<T> {
+    const entry = this.connections.get(serverId)
+    if (!entry || entry.status !== 'connected') {
+      return Promise.reject(new Error(`Server ${serverId} is not connected`))
+    }
+
+    return this._acquireChannel(entry, () => new Promise<T>((resolve, reject) => {
+      entry.client.sftp((err, sftp) => {
+        if (err) return reject(err)
+        operation(sftp)
+          .then(resolve, reject)
+          .finally(() => {
+            try { sftp.end() } catch { /* channel may already be closed */ }
+          })
+      })
+    }))
   }
 
   streamCommand(

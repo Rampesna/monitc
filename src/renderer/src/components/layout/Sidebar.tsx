@@ -13,7 +13,8 @@ import {
   GitBranch,
   Rocket,
   Terminal,
-  TerminalSquare
+  TerminalSquare,
+  FolderOpen
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../../context/AppContext'
@@ -34,6 +35,7 @@ export function Sidebar(): React.ReactElement {
     { to: '/cicd', icon: GitBranch, label: t('nav.cicd') },
     { to: '/deploy', icon: Rocket, label: t('nav.deploy') },
     { to: '/terminal', icon: TerminalSquare, label: t('nav.terminal') },
+    { to: '/sftp', icon: FolderOpen, label: t('nav.files') },
     { to: '/logs', icon: ScrollText, label: t('nav.logs') },
     { to: '/alerts', icon: Bell, label: t('nav.alerts') },
     { to: '/settings', icon: Settings, label: t('nav.settings') }
