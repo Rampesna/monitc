@@ -38,3 +38,12 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+      - name: Install website dependencies
+        run: npm ci --prefix website
+
+      - name: Build website
+        run: npm run build --prefix website
+
+      - name: Validate website Compose configuration
+        run: UPDATE_ADMIN_TOKEN=ci-compose-validation docker compose -f website/docker-compose.yml config --quiet
