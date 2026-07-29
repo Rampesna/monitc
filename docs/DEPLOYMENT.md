@@ -9,14 +9,15 @@ applications in other namespaces are not modified.
 |---|---:|---|
 | Web | 2 | Read-only desktop release mount |
 | Admin | 2 | None |
-| API | 2–6 (HPA) | Read/write desktop release mount |
+| API | 2–6 (HPA) | Read/write 10 Gi desktop release PVC |
 | Collector worker | 1 | PostgreSQL |
 | PostgreSQL + pgvector | 1 | 20 Gi `local-path` PVC |
 | Redis Cluster | 3 masters | 2 Gi PVC per pod |
-| Backup CronJob | Daily | Host backup directory |
+| Backup CronJob | Daily | 20 Gi backup PVC |
 
-The host directory is `/www/wwwroot/monitc`. Persistent desktop releases and PostgreSQL dumps are
-under `runtime/releases` and `runtime/backups`.
+The host directory is `/www/wwwroot/monitc`. `runtime/releases` is a protected staging area for
+CI/manual uploads; `sync-releases.sh` fingerprints and copies new artifacts into the live release
+PVC. PostgreSQL dumps stay in a separate backup PVC.
 
 ## DNS and aaPanel reverse proxies
 
@@ -127,8 +128,8 @@ production use, replace root login with a dedicated user and tightly scoped sudo
 | `MONITC_DEPLOY_KNOWN_HOSTS` | Pinned host key |
 
 The workflow uploads already verified packages and updater metadata to
-`/www/wwwroot/monitc/runtime/releases`. The API release screen reads the same directory and the web
-service exposes it at `/updates`.
+`/www/wwwroot/monitc/runtime/releases`, then invokes `infra/scripts/sync-releases.sh`. The API and
+web pods share the resulting release PVC; the web service exposes it at `/updates`.
 
 ## Verification
 
@@ -150,8 +151,9 @@ The verification script confirms:
 
 ## Backups and recovery
 
-Managed dumps are created daily in `runtime/backups` with PostgreSQL custom format and validated
-before retention cleanup.
+Managed dumps are created daily in the backup PVC with PostgreSQL custom format and validated
+before retention cleanup. Copy a dump out with `kubectl cp` when performing an off-cluster backup
+or restore drill.
 
 Manual backup:
 
