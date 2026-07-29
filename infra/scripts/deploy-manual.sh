@@ -50,8 +50,20 @@ docker build --pull -f infra/docker/api.Dockerfile -t "$api_image" .
 docker build --pull -f infra/docker/web.Dockerfile -t "$web_image" .
 docker build --pull -f infra/docker/admin.Dockerfile -t "$admin_image" .
 
-echo "[deploy] importing images into K3s containerd"
-docker save "$api_image" "$web_image" "$admin_image" | k3s ctr images import -
+container_runtime="$("$kubectl_bin" get nodes -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}')"
+case "$container_runtime" in
+  docker://*)
+    echo "[deploy] K3s uses $container_runtime; locally built images are already available"
+    ;;
+  containerd://*)
+    echo "[deploy] importing images into K3s containerd"
+    docker save "$api_image" "$web_image" "$admin_image" | k3s ctr images import -
+    ;;
+  *)
+    echo "[deploy] unsupported Kubernetes container runtime: $container_runtime" >&2
+    exit 1
+    ;;
+esac
 
 "$kubectl_bin" apply -f infra/k8s/base/00-namespace.yaml
 "$kubectl_bin" -n "$namespace" create secret generic monitc-secrets \

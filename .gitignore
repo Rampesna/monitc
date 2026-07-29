@@ -7,6 +7,7 @@ dist/
 platform/**/dist/
 platform/**/.vite/
 platform/.runtime/
+runtime/
 .DS_Store
 *.local
 *.tsbuildinfo
