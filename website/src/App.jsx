@@ -14,7 +14,6 @@ import {
   FileUp,
   FolderOpen,
   Gauge,
-  Github,
   Globe2,
   HardDrive,
   KeyRound,
@@ -34,6 +33,14 @@ import {
 
 const GITHUB_RELEASES = 'https://github.com/Rampesna/monitc/releases/latest'
 const GITHUB_REPO = 'https://github.com/Rampesna/monitc'
+const WEB_APP = '/app/'
+
+const plans = [
+  { name: 'Community', price: '$0', description: 'Local-first infrastructure for personal operators.', features: ['2 servers', '24-hour history', 'Desktop and self-hosted', 'Kubernetes visibility'] },
+  { name: 'Solo', price: '$12', description: 'A focused managed workspace for one operator.', features: ['5 managed servers', '30-day history', 'Web terminal and SFTP', 'Alerts'], highlighted: true },
+  { name: 'Team', price: '$39', description: 'Shared operations with controls and context.', features: ['25 managed servers', '5 seats', '90-day history', 'RBAC and audit log'] },
+  { name: 'Scale', price: 'Custom', description: 'Custom limits, onboarding and guarantees.', features: ['Custom server limits', '365-day history', 'SSO-ready architecture', 'Dedicated onboarding'] }
+]
 
 const features = [
   {
@@ -99,10 +106,11 @@ function Header({ release }) {
         <nav className={open ? 'nav-open' : ''} aria-label="Primary navigation">
           <a href="#features" onClick={() => setOpen(false)}>Features</a>
           <a href="#security" onClick={() => setOpen(false)}>Security</a>
+          <a href="#pricing" onClick={() => setOpen(false)}>Pricing</a>
           <a href="#updates" onClick={() => setOpen(false)}>Updates</a>
           <a href={GITHUB_REPO} target="_blank" rel="noreferrer">GitHub</a>
-          <a className="nav-download" href={release.downloadUrl || GITHUB_RELEASES}>
-            Download <span>v{release.version}</span>
+          <a className="nav-download" href={WEB_APP}>
+            Open web app <span>→</span>
           </a>
         </nav>
         <button className="menu-button" onClick={() => setOpen(!open)} aria-label="Toggle navigation">
@@ -203,19 +211,19 @@ function Hero({ release }) {
           <p className="eyebrow">SERVER OPERATIONS, BEAUTIFULLY FOCUSED</p>
           <h1>Your infrastructure.<br /><span>One calm view.</span></h1>
           <p className="hero-lead">
-            Monitor servers, operate containers, manage Kubernetes, open terminals and move remote files—all from one fast desktop command center.
+            Monitor servers, operate containers, manage Kubernetes, open terminals and move remote files—from the desktop, your own server or the monitc cloud.
           </p>
           <div className="hero-actions">
-            <a className="button button-primary" href={release.downloadUrl || GITHUB_RELEASES}>
-              <Download size={17} /> {platformLabel()} <ArrowRight size={16} />
+            <a className="button button-primary" href={WEB_APP}>
+              <Globe2 size={17} /> Open web app <ArrowRight size={16} />
             </a>
-            <a className="button button-secondary" href={GITHUB_REPO} target="_blank" rel="noreferrer">
-              <Github size={17} /> View on GitHub
+            <a className="button button-secondary" href={release.downloadUrl || GITHUB_RELEASES}>
+              <Download size={17} /> {platformLabel()}
             </a>
           </div>
           <div className="hero-proof">
-            <span><Check size={13} /> Native macOS, Windows & Linux</span>
-            <span><Check size={13} /> Your credentials stay on your device</span>
+            <span><Check size={13} /> Desktop, self-hosted & managed cloud</span>
+            <span><Check size={13} /> Secrets are never stored in plaintext</span>
           </div>
         </div>
         <ProductPreview />
@@ -274,21 +282,47 @@ function Security() {
     <section className="section security-section" id="security">
       <div className="shell security-grid">
         <div className="security-copy">
-          <p className="eyebrow">LOCAL-FIRST BY DESIGN</p>
-          <h2>Your servers are yours.<br />They stay that way.</h2>
-          <p>monitc connects directly from your desktop. Server credentials and private keys remain on your machine—there is no monitc cloud sitting between you and your infrastructure.</p>
+          <p className="eyebrow">YOUR DEPLOYMENT. YOUR CHOICE.</p>
+          <h2>Local when you want it.<br />Managed when you need it.</h2>
+          <p>Desktop mode keeps credentials on your device. Self-hosted mode keeps the whole control plane on your Linux server. Managed cloud seals connection data in your browser and stores only ciphertext.</p>
           <div className="security-points">
-            <div><ShieldCheck size={18} /><span><strong>No telemetry pipeline</strong><small>Your infrastructure data is not collected.</small></span></div>
-            <div><LockKeyhole size={18} /><span><strong>Direct encrypted connections</strong><small>SSH and SFTP connect straight to your servers.</small></span></div>
-            <div><HardDrive size={18} /><span><strong>Local persistence</strong><small>Preferences and metric history live on your device.</small></span></div>
+            <div><ShieldCheck size={18} /><span><strong>Public-key sealed vault</strong><small>Managed secrets are encrypted before leaving the browser.</small></span></div>
+            <div><LockKeyhole size={18} /><span><strong>Short-lived, scoped access</strong><small>Rotating sessions, RBAC and one-time terminal tickets.</small></span></div>
+            <div><HardDrive size={18} /><span><strong>Local-first remains intact</strong><small>Desktop users can keep every credential and metric on-device.</small></span></div>
           </div>
         </div>
         <div className="security-visual">
           <div className="orbit orbit-one" /><div className="orbit orbit-two" />
-          <div className="security-core"><ShieldCheck size={38} /><span>LOCAL<br />CONTROL</span></div>
-          <div className="orbit-node node-one"><MonitorCog size={18} /><span>Your Mac</span></div>
+          <div className="security-core"><ShieldCheck size={38} /><span>SEALED<br />CONTROL</span></div>
+          <div className="orbit-node node-one"><MonitorCog size={18} /><span>Desktop</span></div>
           <div className="orbit-node node-two"><Server size={18} /><span>Servers</span></div>
-          <div className="orbit-node node-three"><KeyRound size={18} /><span>Keys</span></div>
+          <div className="orbit-node node-three"><KeyRound size={18} /><span>Ciphertext</span></div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Pricing() {
+  return (
+    <section className="section pricing-section" id="pricing">
+      <div className="shell">
+        <div className="section-heading pricing-heading">
+          <p className="eyebrow">START LOCAL. SCALE WHEN IT HELPS.</p>
+          <h2>Four clear ways to run.</h2>
+          <p>Choose a package in the app. We activate paid plans personally while the payment flow is being prepared.</p>
+        </div>
+        <div className="landing-pricing-grid">
+          {plans.map((plan) => (
+            <article className={plan.highlighted ? 'highlighted' : ''} key={plan.name}>
+              {plan.highlighted && <span className="pricing-popular"><Sparkles size={11} /> Most focused</span>}
+              <h3>{plan.name}</h3>
+              <p>{plan.description}</p>
+              <div><strong>{plan.price}</strong>{plan.price.startsWith('$') && <small>/ month</small>}</div>
+              <ul>{plan.features.map((feature) => <li key={feature}><Check size={13} /> {feature}</li>)}</ul>
+              <a href={WEB_APP}>{plan.name === 'Community' ? 'Start free' : `Request ${plan.name}`} <ArrowRight size={13} /></a>
+            </article>
+          ))}
         </div>
       </div>
     </section>
@@ -326,8 +360,11 @@ function FinalCta({ release }) {
         <div className="cta-orb"><span className="brand-mark"><span /></span></div>
         <p className="eyebrow">READY WHEN YOU ARE</p>
         <h2>Infrastructure work feels better<br />when the tool gets out of the way.</h2>
-        <p>Download monitc and bring your servers into focus.</p>
-        <a className="button button-primary" href={release.downloadUrl || GITHUB_RELEASES}><Download size={17} /> {platformLabel()} <ArrowRight size={16} /></a>
+        <p>Open the web workspace or keep everything local with the desktop app.</p>
+        <div className="hero-actions">
+          <a className="button button-primary" href={WEB_APP}><Globe2 size={17} /> Open web app <ArrowRight size={16} /></a>
+          <a className="button button-secondary" href={release.downloadUrl || GITHUB_RELEASES}><Download size={17} /> Download desktop</a>
+        </div>
       </div>
     </section>
   )
@@ -335,7 +372,7 @@ function FinalCta({ release }) {
 
 function Footer() {
   return (
-    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href={GITHUB_REPO}>GitHub</a><a href="/admin">Release admin</a><span>© {new Date().getFullYear()} monitc</span></div></div></footer>
+    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href={GITHUB_REPO}>GitHub</a><a href={WEB_APP}>Web app</a><span>© {new Date().getFullYear()} monitc</span></div></div></footer>
   )
 }
 
@@ -414,11 +451,14 @@ function Admin() {
 }
 
 export default function App() {
-  const [release, setRelease] = useState({ version: '1.3.4', summary: '', downloadUrl: '', publishedAt: null })
+  const [release, setRelease] = useState({ version: '1.4.0', summary: '', downloadUrl: '', publishedAt: null })
   useEffect(() => {
     fetch('/api/releases/latest').then((response) => response.ok ? response.json() : null).then((data) => data && setRelease(data)).catch(() => {})
   }, [])
 
-  if (window.location.pathname.startsWith('/admin')) return <Admin />
-  return <><Header release={release} /><Hero release={release} /><Features /><Security /><Updates release={release} /><FinalCta release={release} /><Footer /></>
+  if (window.location.pathname.startsWith('/admin')) {
+    window.location.replace('https://monitcap.talhacan.com')
+    return null
+  }
+  return <><Header release={release} /><Hero release={release} /><Features /><Security /><Pricing /><Updates release={release} /><FinalCta release={release} /><Footer /></>
 }

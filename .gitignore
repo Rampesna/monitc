@@ -1,6 +1,12 @@
 node_modules/
 out/
 dist/
+.env
+.env.*
+!.env.example
+platform/**/dist/
+platform/**/.vite/
+platform/.runtime/
 .DS_Store
 *.local
 *.tsbuildinfo

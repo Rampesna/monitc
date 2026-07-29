@@ -302,6 +302,16 @@ export interface K8sPod {
   node: string
   ip: string
   containers: string[]
+  cpuUsageMillicores: number
+  cpuRequestMillicores: number
+  cpuLimitMillicores: number
+  cpuUsagePercent: number | null
+  memoryUsageBytes: number
+  memoryRequestBytes: number
+  memoryLimitBytes: number
+  memoryUsagePercent: number | null
+  networkRxBytesPerSecond: number
+  networkTxBytesPerSecond: number
 }
 
 export interface K8sService {

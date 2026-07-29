@@ -16,8 +16,7 @@ export async function sendSmtpAlert(config: SmtpConfig, subject: string, body: s
     from: config.fromAddress,
     to: recipients.join(', '),
     subject,
-    text: body,
-    html: `<pre style="font-family:monospace">${body}</pre>`
+    text: body
   })
 }
 

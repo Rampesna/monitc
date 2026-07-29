@@ -2,458 +2,270 @@
 
 # monitc
 
-**A modern, cross-platform server monitoring & DevOps management desktop application**
+**A calm operations workspace for servers, containers and Kubernetes — on desktop, self-hosted, or managed cloud.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-7c6cff.svg)](LICENSE)
 [![Electron](https://img.shields.io/badge/Electron-35-47848F?logo=electron)](https://electronjs.org)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript)](https://typescriptlang.org)
-[![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)](#)
+[![Node](https://img.shields.io/badge/Node-22-5FA04E?logo=nodedotjs)](https://nodejs.org)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql)](https://postgresql.org)
 
-[**Download**](#-download) · [**Features**](#-features) · [**Screenshots**](#-screenshots) · [**Getting Started**](#-getting-started) · [**Contributing**](#-contributing)
+[Website](https://monitc.talhacan.com) · [Web app](https://monitc.talhacan.com/app) · [Releases](../../releases) · [Security](SECURITY.md) · [Deployment](docs/DEPLOYMENT.md)
 
 </div>
 
 ---
 
-## ✨ Features
+## One product, three deployment modes
 
-### ✦ Soft DevOps Workspace
-- **Focused command center** — a 2×2 live cockpit combines CPU/RAM/Disk gauges, resource history, running containers, and a real inline SSH terminal
-- **Content-shaped loading** — soft skeleton states preserve each surface's layout while metrics, containers, files, and lazy workspaces load
-- **Adaptive navigation rail** — starts compact to protect working space, expands on demand with clear labels, and remembers the chosen width
-- **Searchable server switcher** — press `Cmd/Ctrl+K` or use the title bar to find a server by name, address, or user without a native select menu
-- **Consistent visual system** — graphite surfaces, low-contrast borders, soft depth, and purple/cyan/green status accents are shared across Dashboard, Servers, Docker, Kubernetes, Terminal, SFTP, CI/CD, Deploy, Logs, Alerts, and Settings
-- **Live context everywhere** — the active server and global connection health remain visible in the title bar while navigating
+| Mode | Best for | Where data lives | Runtime |
+|---|---|---|---|
+| Desktop | Individual operators and local-first workflows | On the user's computer | Electron on macOS, Windows or Linux |
+| Self-hosted | Teams that want full infrastructure control | On the team's Linux host | Docker Compose |
+| Managed cloud | Teams that want monitc operated for them | Encrypted records in the monitc platform | Kubernetes |
 
-### 🖥️ Server Monitoring
-- **SSH-based monitoring** — connect to any Linux/macOS server over SSH (password or private key)
-- **Real-time metrics** — CPU, RAM, Disk, Network I/O, Load Average, Uptime with live charts
-- **Readable host inventory** — physical disks and network adapters stay prominent while noisy container, Kubernetes, tmpfs, and virtual-interface entries remain available behind an explicit filter
-- **Multi-server support** — monitor unlimited servers simultaneously from one dashboard
-- **Persistent SSH connection** — single multiplexed SSH connection per server (max 6 concurrent channels); no new connection per poll cycle
-- **Automatic reconnection** — exponential backoff with jitter (1.5s → 60s), SSH-level keepalives every 15s, active health check every 30s
+The desktop application remains fully usable without an account. The web platform adds accounts,
+workspaces, plan limits, background collection, browser terminal/SFTP, audit trails and a dedicated
+operator console.
 
-### 📊 Metrics History
-- **SQLite-backed history** — CPU, RAM, Disk, Network readings stored locally with timestamps
-- **7-day retention** — automatic purge of data older than 7 days
-- **Query by time range** — retrieve last 1h / 6h / 24h / 48h / 7d of metrics for any server
+## Highlights
 
-### 📄 Report Export
-- **PDF & PNG export** — export a full server performance report for any time range
-- **Professional layout** — summary cards (avg/peak CPU & RAM), area charts, disk bar chart, network interface table, header/footer with server info
-- Two-step flow: choose time range + format → preview → download
+- Live CPU, memory, disk, uptime and network telemetry over SSH.
+- Kubernetes pod allocation and usage: CPU requests/limits/usage, memory requests/limits/usage,
+  restart state and per-pod receive/transmit rates.
+- Docker and Kubernetes inventory and operations in the desktop client.
+- Browser and desktop SSH terminals.
+- SFTP navigation, editor, upload/download, create, copy, cut, paste, move and recursive delete.
+- Sustained metric alert rules with cooldown and in-app event history.
+- Four plans with server, seat, retention, poll interval and capability entitlements.
+- A separate Linear-inspired platform console for workspace, user, plan request, release and audit
+  administration.
+- Signed desktop releases with an in-app update prompt and resumable **Later** flow.
 
-### ☁️ AWS Integration
-- **EC2 management** — list instances with state badges, start/stop/reboot, full details (security groups, IAM role, volumes)
-- **EKS management** — list clusters, describe details, node groups with scaling config, generate kubeconfig YAML
-- **CloudWatch metrics** — historical time-series for CPUUtilization, NetworkIn/Out, DiskReadOps/WriteOps
-- **Credential validation** — STS GetCallerIdentity to verify access keys before saving
-- **Security** — region whitelist (29 regions), credentials masked in UI, all API calls in main process only
+## Platform architecture
 
-### 🐳 Docker Management
-- Live container list with status, resource usage, and port mappings
-- Start / Stop / Restart / Remove containers directly from the UI
-- Live log streaming per container with xterm.js terminal
-- Images, Networks, and Volumes inventory
+```mermaid
+flowchart LR
+  D["Desktop app"] --> S["Customer servers"]
+  B["Web app /app"] --> A["Fastify API"]
+  C["Operator console"] --> A
+  A --> P["PostgreSQL 16 + pgvector"]
+  A --> R["Redis Cluster"]
+  A --> U["Release storage"]
+  W["Collector worker"] --> P
+  W --> R
+  W --> S
+```
 
-### ☸️ Kubernetes Management
-- Pod, Service, Deployment, and Event monitoring
-- **K8s Management panel** — create/delete Namespaces, Secrets (generic, docker-registry, TLS), Service Accounts
-- **Kubeconfig generator** — export a CI/CD-ready Base64 kubeconfig (localhost replaced with server IP)
-- Full support for K3s, K8s, and standard kubeadm clusters
+The managed installation runs in the isolated `monitc` Kubernetes namespace:
 
-### 💻 SSH Terminal
-- **Dashboard quick terminal** — connect and use a live SSH shell without leaving the command center
-- **Seamless handoff** — move the active quick-terminal session, including its recent output, into the full Terminal workspace without reconnecting
-- **Multi-tab terminal** — open multiple interactive SSH shell sessions simultaneously
-- **Full xterm.js terminal** — true 256-color terminal with resize support
-- **Server picker modal** — select any configured server from a list, with live connection status
+- two API replicas behind a NodePort service;
+- two web replicas and two admin replicas;
+- one background collector worker;
+- PostgreSQL 16 with pgvector;
+- three Redis master pods with persistent AOF storage;
+- daily verified PostgreSQL backups with 14-day local retention;
+- resource limits, read-only application filesystems, seccomp, NetworkPolicies, HPA and PDB.
 
-### 📁 SFTP File Manager
-- **Remote file browser** — navigate any connected server with breadcrumbs, folder search, multi-select, and familiar double-click navigation
-- **Complete file operations** — create files/folders, rename, recursively copy/cut/paste, recursively delete, and update Unix permissions
-- **Built-in text editor** — open, edit, and save remote UTF-8 text files without leaving monitc (5 MB editor safety limit)
-- **Upload & download** — choose local files with the native system dialog and transfer them through SFTP
-- **Keyboard workflow** — `Ctrl/Cmd+A`, `Ctrl/Cmd+C/X/V`, `F2`, `Delete`, and `Backspace` shortcuts
-- **Connection-aware transfers** — SFTP reuses the monitored server's persistent SSH connection and shared channel queue
+On a single physical K3s node, multiple Redis/API pods provide process-level resilience, not
+physical-node high availability. Real node HA requires multiple Kubernetes nodes and off-node
+database/backup replicas.
 
-### 🖥️ Servers Overview
-- Dedicated **Servers** page listing all configured servers as cards
-- Live **connection status**, CPU, RAM, and Disk gauges per server at a glance
-- Add a server directly from the Servers page without opening Settings
-- Open a server's SFTP files directly from its card
+## Production endpoints
 
-### 🔁 CI/CD & Deployments
-- **GitHub Actions** — browse repos and workflows, trigger `workflow_dispatch` events, monitor run status and job steps
-- **GitLab CI/CD** — browse projects and pipelines, trigger new pipelines, monitor job status
-- **Deploy panel** — link a server path + repo + K8s deployment; one-click Git Pull, CI/CD trigger, and Rollout Restart/Undo/Scale/SetImage
+Only three public DNS records are required:
 
-### 🔔 Alerts
-- Configurable threshold rules: CPU > X%, RAM > X%, Disk > X% for N consecutive minutes
-- Multi-channel notifications: **Email (SMTP)**, **WhatsApp** (Twilio / custom API), **Telegram Bot**
-- Theme-native on/off controls and connection-aware cards replace platform checkboxes across notification and Git integrations
-- **Calm templates workspace** — compact, responsive alert-template cards use theme tones and fill wide settings surfaces cleanly
-- Cooldown periods to prevent alert flooding
+| Host | Purpose | Reverse-proxy target |
+|---|---|---|
+| `monitc.talhacan.com` | Landing page, `/app`, desktop downloads and `/updates` | `127.0.0.1:9127` |
+| `monitc-api.talhacan.com` | REST API and terminal WebSocket | `127.0.0.1:9128` |
+| `monitcap.talhacan.com` | Private platform operator console | `127.0.0.1:9129` |
 
-### 🌍 Internationalization
-- 7 languages: **English**, **Turkish**, **German**, **French**, **Spanish**, **Italian**, **Arabic** (RTL)
-- Language switcher in Settings → General
+Enable WebSocket proxying on the API host, force HTTPS, and preserve the `/updates` path on the
+main host. No additional subdomain is required for the current architecture.
 
----
+## Security model
 
-## 📸 Screenshots
+monitc does not store SSH credentials or personal fields as plaintext:
 
-<table>
-  <tr>
-    <td width="50%">
-      <img src=".github/assets/dashboard.png" alt="Server Dashboard" />
-      <p align="center"><sub>Command center — resources, activity, containers & quick terminal</sub></p>
-    </td>
-    <td width="50%">
-      <img src=".github/assets/k8s.png" alt="Kubernetes Monitor" />
-      <p align="center"><sub>Kubernetes — Pod, Service & Deployment monitoring</sub></p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src=".github/assets/cicd.png" alt="CI/CD" />
-      <p align="center"><sub>CI/CD — GitHub Actions workflow triggering & run history</sub></p>
-    </td>
-    <td width="50%">
-      <img src=".github/assets/k3s.png" alt="K8s Management" />
-      <p align="center"><sub>K8s Management — Namespace, Secret & Service Account panel</sub></p>
-    </td>
-  </tr>
-</table>
+- the browser seals SSH material with a libsodium X25519 sealed box before upload;
+- PostgreSQL stores only SSH ciphertext and a key identifier;
+- the collector decrypts a credential only in worker memory for the duration of an SSH operation;
+- email, display name, workspace/server/alert names and contact text use application-layer
+  AES-256-GCM encryption with context-bound authenticated data;
+- normalized email lookup uses a separate HMAC blind-index key;
+- passwords use Argon2id plus an optional application pepper;
+- access tokens are short-lived Ed25519 JWTs with strict `alg`, `typ`, issuer and audience checks;
+- refresh tokens are opaque, one-time rotating, hashed in PostgreSQL and protected by replay-family
+  revocation;
+- browser access tokens stay in memory; refresh tokens use a host-only `HttpOnly`, `Secure`,
+  `SameSite=Strict` cookie;
+- workspace RBAC and plan entitlements are enforced by the API, not only by the UI;
+- managed mode rejects loopback, link-local and private SSH destinations to reduce SSRF risk;
+- logs redact credentials, cookies and authorization headers.
 
----
+Continuous managed monitoring requires the collector to establish SSH connections, so this is
+not a zero-knowledge design: an authorized running worker can decrypt a selected credential in
+memory. Database theft alone does not reveal it, but loss of the vault key and database together
+would. Keep vault, PII and JWT keys outside PostgreSQL and back them up separately.
 
-## 📥 Download
+See [SECURITY.md](SECURITY.md) for boundaries, key handling, dependency notes and operational
+requirements.
 
-Pre-built releases are available on the [GitHub Releases](../../releases) page.
+## Plans
 
-**One-click in-app updates:** Packaged builds check the official `monitc.talhacan.com` update feed about 5 seconds after launch and every 4 hours. When an update is available, a banner shows the new version and release notes. Click **Update & restart** once; monitc downloads the signed package, verifies it, installs it, and restarts automatically. Choosing **Later** dismisses the banner while keeping an update shortcut in the header; you can resume at any time from that shortcut or **Settings → General → Application updates**.
+| Plan | Servers | Seats | Retention | Minimum poll | Main capabilities |
+|---|---:|---:|---:|---:|---|
+| Community | 2 | 1 | 1 day | 60 s | Desktop, self-hosted and workload visibility |
+| Solo | 5 | 1 | 30 days | 30 s | Web terminal, SFTP and alerts |
+| Team | 25 | 5 | 90 days | 15 s | RBAC, audit log and priority support |
+| Scale | Custom | Custom | 365 days | 10 s | Custom limits, onboarding and SLA |
 
-| Platform | Format | Architecture |
-|----------|--------|--------------|
-| macOS | `.dmg` | Universal (Apple Silicon + Intel) |
-| Windows | `.exe` NSIS Installer | x64 |
-| Linux | `.AppImage` / `.deb` | x64 |
+There is intentionally no payment provider in this release. Selecting a paid plan creates a
+contact request; a platform administrator can review it and assign the plan manually from the
+private operator console.
 
-### macOS (Homebrew)
+## Desktop
+
+### Install
 
 ```bash
 brew tap Rampesna/tap
 brew install --cask monitc
 ```
 
-### macOS (Direct download)
+Direct `.dmg`, Windows installer, AppImage and Debian packages are published on
+[GitHub Releases](../../releases).
 
-Download the latest universal `.dmg` from [Releases](../../releases), open it and drag **monitc.app** to `/Applications`.
-
-### Windows
-
-Download the latest NSIS installer (`.exe`) from [Releases](../../releases) and run it.
-
-### Linux (AppImage)
+### Develop
 
 ```bash
-chmod +x monitc-*.AppImage
-./monitc-*.AppImage
-```
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-| Tool | Version |
-|------|---------|
-| Node.js | ≥ 20 |
-| npm | ≥ 9 |
-
-### Development
-
-```bash
-# Clone the repository
-git clone https://github.com/Rampesna/monitc.git
-cd monitc
-
-# Install dependencies
-npm install
-
-# Start in development mode (hot reload)
+npm ci
 npm run dev
 ```
 
-### Production Build
+### Build
 
 ```bash
-# Build for current platform
 npm run build
-
-# Package for macOS (creates dist/monitc-*.dmg)
 npm run build:mac
-
-# Package for Windows (creates dist/monitc-*.exe)
 npm run build:win
-
-# Package for Linux (creates dist/monitc-*.AppImage)
 npm run build:linux
 ```
 
----
+Packaged clients read the generic update feed at
+`https://monitc.talhacan.com/updates`. After choosing **Later**, the update remains available in
+the header and under **Settings → General → Application updates**.
 
-## 🚀 Publishing an Update
+## Web platform development
 
-Stable updates are published automatically by [`.github/workflows/release.yml`](.github/workflows/release.yml) whenever a version tag such as `v1.3.0` is pushed. The workflow:
-
-1. verifies that the tag matches both `package.json` and `package-lock.json`
-2. requires the tag commit to be on `main`
-3. builds all application bundles before packaging
-4. signs and notarizes the universal macOS app
-5. creates the macOS ZIP required by Squirrel.Mac in addition to the DMG
-6. builds Windows NSIS/portable and Linux AppImage/deb packages
-7. validates `latest.yml`, `latest-mac.yml`, and `latest-linux.yml` against the generated packages
-8. publishes all packages, blockmaps, and updater metadata in one GitHub Release
-9. uploads the verified stable release to `https://monitc.talhacan.com/updates`, which is the production feed used by installed applications
-
-### Required GitHub secrets
-
-Configure these in **Repository Settings → Secrets and variables → Actions** before publishing a tag:
-
-| Secret | Purpose |
-|--------|---------|
-| `MAC_CSC_LINK` | Base64-encoded Developer ID Application `.p12` certificate |
-| `MAC_CSC_KEY_PASSWORD` | Password used when exporting the `.p12` |
-| `APPLE_ID` | Apple Developer account email |
-| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password created at appleid.apple.com |
-| `APPLE_TEAM_ID` | 10-character Apple Developer Team ID |
-| `WIN_CSC_LINK` | Optional base64 Windows signing certificate (`.pfx`) |
-| `WIN_CSC_KEY_PASSWORD` | Optional Windows certificate password |
-| `UPDATE_SERVER_URL` | Production website origin: `https://monitc.talhacan.com` |
-| `UPDATE_ADMIN_TOKEN` | Long random token shared with the protected release upload API |
-
-The release workflow deliberately fails instead of publishing an unsigned macOS update when required signing secrets are missing.
-
-### Release commands
-
-For the prepared `1.3.4` release after merging to `main`:
+Requirements: Node.js `22.14+`, npm `10+`, PostgreSQL 16 with pgvector, and Redis 7.
 
 ```bash
-npm run release:verify -- v1.3.4
-git tag -a v1.3.4 -m "monitc v1.3.4"
-git push origin v1.3.4
+npm ci --prefix platform
+cp platform/.env.example platform/.env
+npm run typecheck --prefix platform
+npm test --prefix platform
+npm run build --prefix platform
 ```
 
-`v1.3.1` is also the migration release for installations that still read updates from GitHub Releases. Publish it to GitHub and the production generic feed together; after installing it, clients read future releases directly from `monitc.talhacan.com/updates`.
+The workspace contains:
 
-For later patch releases, `npm version` updates both package files, creates the release commit, and creates the tag:
+```text
+platform/
+├── apps/api       Fastify REST/WebSocket API and collector worker
+├── apps/web       Customer React application, served at /app
+├── apps/admin     Private platform operator React application
+└── packages/shared
+```
+
+Production secrets can be generated once with:
 
 ```bash
-npm version patch
-npm run release:verify -- "$(git describe --tags --exact-match)"
-git push origin main --follow-tags
+node platform/scripts/generate-production-env.mjs .env.production
 ```
 
-CI checks every pull request with [`.github/workflows/ci.yml`](.github/workflows/ci.yml). Production updater logs are written to Electron's platform-specific logs directory as `updater.log`.
+The generator preserves an existing file and writes new files with mode `0600`. Never regenerate
+keys over an existing encrypted database.
 
-The Dockerized React landing page and release service live in [`website/`](website/). It serves the public website, the protected `/admin` release panel, and the static `/updates` feed from one container on port `9119`. Release files persist in `website/data` and are not committed to Git.
+## Self-hosted Linux
 
----
-
-## 🔧 Adding a Server
-
-1. Open **Servers** from the sidebar (or use **Settings → Servers**)
-2. Click **Add Server**
-3. Fill in: Host/IP, port (default 22), username, auth method
-4. Click **Test Connection** — if it succeeds, click **Save**
-5. Monitoring starts automatically
-
-### SSH Key Authentication
-
-Paste the full private key content (for example, a `-----BEGIN OPENSSH PRIVATE KEY-----` block). If the key is encrypted, enter its passphrase in the separate field.
-
----
-
-## 📁 Managing Files with SFTP
-
-1. Click **Files** in the sidebar, or click the folder icon on a server card
-2. Select the target server from the picker; monitc connects automatically if needed
-3. Double-click folders to navigate and files to open the built-in editor
-4. Use the toolbar for create, upload/download, copy/cut/paste, rename, permissions, and delete
-5. Multi-select with `Ctrl/Cmd+click` or the checkboxes; use the breadcrumb to jump to a parent folder
-
-Copy and delete operations support non-empty directories recursively. Downloads currently target individual files, while uploads support selecting multiple local files. Remote editor reads are limited to 5 MB to keep the desktop UI responsive.
-
----
-
-## 💻 Using the SSH Terminal
-
-1. Click **Terminal** in the sidebar
-2. Click **+ New Session** and select a server from the modal
-3. The terminal connects and opens an interactive shell session
-4. Open multiple tabs for different servers simultaneously
-5. Use the **×** button on a tab to close the session
-
-For a faster path, click **Connect quick terminal** on Dashboard. Run commands directly in the card, then use the expand icon in its header to move that same live session and recent output into the full Terminal workspace.
-
----
-
-## ☁️ Connecting AWS
-
-1. Open **Settings → Cloud Providers**
-2. Click **Add AWS Account**
-3. Enter a label, Access Key ID, Secret Access Key, and region
-4. Click **Test Credentials** — validates via STS GetCallerIdentity
-5. Save — EC2 instances, EKS clusters, and CloudWatch metrics are now accessible
-
----
-
-## 📄 Exporting Reports
-
-1. Open any **Server Dashboard**
-2. Click **Export** in the top-right
-3. Choose time range (1h / 6h / 24h / 48h / 7d) and format (PDF or PNG)
-4. Click **Preview Report** to load data
-5. Click **Download** — report is saved to your Downloads folder
-
----
-
-## 🔔 Setting Up Alerts
-
-1. Go to **Settings → Integrations** and configure your notification channel (SMTP / WhatsApp / Telegram)
-2. Go to **Alerts** and click **Add Rule**
-3. Choose metric, operator, threshold, and duration
-4. Select the notification channel
-5. Save — the alert engine evaluates metrics in real time
-
----
-
-## 🚢 CI/CD Integration
-
-### GitHub Actions
-
-1. **Settings → Git** — enter your GitHub Personal Access Token (`repo`, `workflow`, `secrets` scopes)
-2. Go to **CI/CD** and select a repository
-3. Choose a workflow from the dropdown and click **▶ Run**
-
-### GitLab CI/CD
-
-1. **Settings → Git** — enter your GitLab PAT (`api` scope), optionally a self-hosted base URL
-2. Go to **CI/CD → GitLab**, select a project
-3. Enter branch/tag and click **▶ Run**
-
-### Kubeconfig for CI/CD
-
-1. Go to **K8s Management → Kubeconfig**
-2. Click **Generate CI/CD Kubeconfig** — it replaces `localhost` with your server's actual IP
-3. Copy the Base64 string and add it as a secret (`KUBECONFIG_BASE64`) in your GitHub/GitLab project
-
----
-
-## 🏗️ Architecture
-
-```
-src/
-├── main/                   # Electron main process (Node.js)
-│   ├── store/              # Plain JSON persistence (monitc-data.json)
-│   ├── ssh/                # Persistent multiplexed SSH connection pool
-│   │   ├── ssh-manager.ts          # Single Client per server, channel queue, health check
-│   │   ├── sftp-manager.ts         # Remote file CRUD, recursive copy/delete, transfer helpers
-│   │   ├── ssh-commands.ts
-│   │   ├── ssh-terminal-manager.ts
-│   │   ├── k8s-management-commands.ts
-│   │   ├── rollout-commands.ts
-│   │   └── git-commands.ts
-│   ├── monitors/           # System / Docker / Kubernetes pollers + log streamer
-│   │   └── metrics-db.ts           # SQLite history (better-sqlite3, WAL mode)
-│   ├── aws/                # AWS SDK v3 clients (EC2, EKS, CloudWatch, STS)
-│   │   ├── aws-manager.ts
-│   │   ├── ec2-commands.ts
-│   │   ├── eks-commands.ts
-│   │   └── cloudwatch-commands.ts
-│   ├── alerts/             # Alert engine + SMTP / WhatsApp / Telegram channels
-│   ├── ci/                 # GitHub & GitLab REST API clients
-│   └── ipc/                # IPC handler registration
-├── preload/                # Context bridge (window.monitcAPI)
-└── renderer/               # React 19 + TailwindCSS 4 SPA
-    └── src/
-        ├── i18n/           # i18next + 7 locale files
-        ├── context/        # AppContext (global state + IPC listeners)
-        ├── components/
-        │   ├── export/     # ExportReportModal + ReportCanvas (html2canvas + jsPDF)
-        │   └── servers/    # Reusable add/edit server form
-        ├── pages/          # Dashboard, Servers, Terminal, Docker, K8s, CI/CD, Alerts, …
-        └── hooks/          # useMetricsHistory and other custom hooks
-```
-
-### IPC Channel Map
-
-| Channel | Direction | Description |
-|---------|-----------|-------------|
-| `servers:list/add/update/remove/test` | Renderer → Main | SSH server CRUD |
-| `sftp:list/read/write/mkdir/rename/remove/paste/chmod` | Renderer → Main | SFTP file management |
-| `sftp:upload/download` | Renderer → Main | Native-dialog SFTP transfers |
-| `monitor:start/stop/status` | Renderer → Main | Start/stop metric polling |
-| `metrics:update` | Main → Renderer | Live metric push |
-| `metrics:history` | Renderer → Main | SQLite history query |
-| `docker:action/inspect` | Renderer → Main | Docker container operations |
-| `kubernetes:update` | Main → Renderer | K8s state push |
-| `k8s:namespaces:*` / `k8s:secrets:*` / `k8s:serviceaccounts:*` | Renderer → Main | K8s management |
-| `k8s:kubeconfig:get/cicd` | Renderer → Main | Kubeconfig export |
-| `rollout:restart/undo/scale/setImage` | Renderer → Main | K8s rollout control |
-| `git:pull/status/lastCommit/branches` | Renderer → Main | Git operations over SSH |
-| `github:*` / `gitlab:*` | Renderer → Main | CI/CD API calls |
-| `projects:list/add/update/remove` | Renderer → Main | Project link CRUD |
-| `alerts:list/add/update/remove` | Renderer → Main | Alert rule CRUD |
-| `settings:get/save` | Renderer → Main | Integration config |
-| `preferences:get/save` | Renderer → Main | App preferences |
-| `terminal:open/write/resize/close` | Renderer → Main | SSH terminal session management |
-| `terminal:data` | Main → Renderer | Live shell output stream |
-| `aws:accounts:list/add/update/remove/test` | Renderer → Main | AWS account CRUD |
-| `aws:ec2:instances:list` / `aws:ec2:instance:*` | Renderer → Main | EC2 operations |
-| `aws:eks:clusters:list` / `aws:eks:*` | Renderer → Main | EKS operations |
-| `aws:cloudwatch:ec2:metrics` | Renderer → Main | CloudWatch time-series |
-
----
-
-## 🤝 Contributing
-
-Contributions are very welcome! Please open an issue first if you plan a larger change.
+The self-hosted profile binds to loopback by default and uses one PostgreSQL instance, one
+standalone Redis instance, API, worker, web and a daily backup service.
 
 ```bash
-# Fork and clone
-git clone https://github.com/<you>/monitc.git
-cd monitc
-npm install
+npm ci --prefix platform
+DEPLOYMENT_MODE=self-hosted \
+APP_ORIGIN=https://monitc.example.com \
+API_ORIGIN=https://monitc-api.example.com \
+ADMIN_ORIGIN=https://monitc-admin.example.com \
+node platform/scripts/generate-production-env.mjs infra/self-hosted/.env
 
-# Create a feature branch
-git checkout -b feat/my-feature
-
-# Make your changes and run the dev server
-npm run dev
-
-# Submit a pull request
+docker compose --env-file infra/self-hosted/.env \
+  -f infra/self-hosted/docker-compose.yml up -d --build
 ```
 
-### Adding a New Language
+Point the web proxy to `127.0.0.1:9127`, the API/WebSocket proxy to `127.0.0.1:9128`, and the
+optional instance operator console to `127.0.0.1:9129`. Full instructions are in
+[infra/self-hosted/README.md](infra/self-hosted/README.md).
 
-1. Copy `src/renderer/src/i18n/locales/en.json` to `<code>.json`
-2. Translate all values (keep keys unchanged)
-3. Import and register the locale in `src/renderer/src/i18n/index.ts`
-4. Add an entry to the `LANGUAGES` array
+## Managed Kubernetes deployment
 
----
+On the production K3s host:
 
-## 📄 License
+```bash
+cd /www/wwwroot/monitc
+./infra/scripts/deploy-manual.sh
+```
 
-MIT © [Talha Can Rampesna](https://github.com/Rampesna)
+The script:
 
----
+1. creates production secrets only on the first install;
+2. builds revision-tagged API, web and admin images;
+3. imports images into K3s containerd;
+4. applies the `monitc` namespace, data services and application manifests;
+5. waits for each rollout;
+6. verifies health, pgcrypto/pgvector, Redis cluster state and workloads.
 
-<div align="center">
-  <sub>Built with Electron · React · TypeScript · TailwindCSS · node-ssh2 · xterm.js · Recharts · better-sqlite3 · AWS SDK v3</sub>
-</div>
+GitHub Actions contains an SSH-based production workflow for later use. Until the Actions quota is
+available, use the same manual script after a fast-forward pull. See
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for proxy, backup, recovery and CI/CD details.
+
+## Desktop release process
+
+A stable `vX.Y.Z` tag on `main` triggers `.github/workflows/release.yml`. It validates version
+consistency, builds each OS package, requires signed/notarized macOS output, verifies updater
+metadata, publishes the GitHub release and synchronizes the update feed over pinned SSH.
+
+```bash
+npm run release:verify -- v1.4.0
+git tag -a v1.4.0 -m "monitc v1.4.0"
+git push origin v1.4.0
+```
+
+Required release and deployment secrets are documented in
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Verification
+
+```bash
+npm run build
+npm run release:verify
+npm run typecheck --prefix platform
+npm test --prefix platform
+npm run build --prefix platform
+npm run build --prefix website
+docker compose --env-file infra/self-hosted/.env \
+  -f infra/self-hosted/docker-compose.yml config
+```
+
+Live verification:
+
+```bash
+./infra/scripts/verify-live.sh
+kubectl -n monitc get pods,svc,hpa,pdb,pvc
+```
+
+## License
+
+[MIT](LICENSE)

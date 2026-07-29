@@ -59,7 +59,7 @@ function listFiles() {
 }
 
 function readRelease() {
-  if (!existsSync(releaseFile)) return { version: '1.3.4', summary: 'Skeleton loading, an inline SSH terminal, and calmer files, settings, and alerts.', publishedAt: null, downloads: [] }
+  if (!existsSync(releaseFile)) return { version: '1.4.0', summary: 'Desktop, self-hosted and managed cloud operations in one calm workspace.', publishedAt: null, downloads: [] }
   return JSON.parse(readFileSync(releaseFile, 'utf8'))
 }
 

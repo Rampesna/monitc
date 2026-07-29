@@ -23,7 +23,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Require tag commit on main
@@ -53,7 +53,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Verify macOS signing secrets
@@ -110,7 +110,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Install dependencies
@@ -145,7 +145,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
 
       - name: Install dependencies
@@ -207,29 +207,51 @@ jobs:
           path: release-assets
           merge-multiple: true
 
-      - name: Upload signed release to monitc update server
+      - name: Create public release metadata
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          download_file="$(find release-assets -maxdepth 1 -type f -name '*.dmg' -printf '%f\n' | head -n 1)"
+          if [ -z "$download_file" ]; then
+            download_file="$(find release-assets -maxdepth 1 -type f \( -name '*.zip' -o -name '*.exe' -o -name '*.AppImage' \) -printf '%f\n' | head -n 1)"
+          fi
+          VERSION="$version" DOWNLOAD_FILE="$download_file" node --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises'
+          const metadata = {
+            version: process.env.VERSION,
+            summary: `monitc ${process.env.VERSION} is ready.`,
+            publishedAt: new Date().toISOString(),
+            downloadUrl: process.env.DOWNLOAD_FILE
+              ? `https://monitc.talhacan.com/updates/${encodeURIComponent(process.env.DOWNLOAD_FILE)}`
+              : 'https://github.com/Rampesna/monitc/releases/latest'
+          }
+          await writeFile('release-assets/release.json', `${JSON.stringify(metadata, null, 2)}\n`)
+          NODE
+
+      - name: Configure pinned SSH identity
         shell: bash
         env:
-          UPDATE_SERVER_URL: ${{ secrets.UPDATE_SERVER_URL }}
-          UPDATE_ADMIN_TOKEN: ${{ secrets.UPDATE_ADMIN_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.MONITC_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MONITC_DEPLOY_KNOWN_HOSTS }}
         run: |
-          if [ -z "$UPDATE_SERVER_URL" ] || [ -z "$UPDATE_ADMIN_TOKEN" ]; then
-            echo "UPDATE_SERVER_URL and UPDATE_ADMIN_TOKEN GitHub secrets are required."
-            exit 1
-          fi
+          install -d -m 700 "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
 
-          version="${GITHUB_REF_NAME#v}"
-          files=()
-          while IFS= read -r -d '' file; do
-            files+=(--form "files=@${file}")
-          done < <(find release-assets -maxdepth 1 -type f -print0)
-
-          curl --fail --show-error --silent \
-            --retry 5 \
-            --connect-timeout 20 \
-            --max-time 3600 \
-            --header "Authorization: Bearer $UPDATE_ADMIN_TOKEN" \
-            --form-string "version=$version" \
-            --form-string "notes=monitc $GITHUB_REF_NAME is now available." \
-            "${files[@]}" \
-            "${UPDATE_SERVER_URL%/}/api/admin/releases"
+      - name: Upload verified release to monitc update feed
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MONITC_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.MONITC_DEPLOY_USER }}
+        run: |
+          staging="/www/wwwroot/monitc/runtime/releases/.incoming-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 770 '$staging'"
+          rsync -az --checksum --chmod=F644,D755 \
+            -e "ssh -o BatchMode=yes -o StrictHostKeyChecking=yes" \
+            release-assets/ "$DEPLOY_USER@$DEPLOY_HOST:$staging/"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "find '$staging' -type f -maxdepth 1 -exec mv -f {} /www/wwwroot/monitc/runtime/releases/ \\; && rmdir '$staging'"

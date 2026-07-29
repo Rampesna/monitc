@@ -1,0 +1,45 @@
+name: Deploy platform
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'platform/**'
+      - 'website/**'
+      - 'infra/**'
+      - '.github/workflows/deploy-platform.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitc-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Configure pinned SSH identity
+        shell: bash
+        env:
+          DEPLOY_KEY: ${{ secrets.MONITC_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MONITC_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          install -m 600 /dev/null "$HOME/.ssh/id_ed25519"
+          install -m 600 /dev/null "$HOME/.ssh/known_hosts"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+
+      - name: Pull and roll out immutable images
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MONITC_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.MONITC_DEPLOY_USER }}
+        run: |
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'cd /www/wwwroot/monitc && git pull --ff-only origin main && ./infra/scripts/deploy-manual.sh'
