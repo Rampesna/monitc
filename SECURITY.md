@@ -109,14 +109,13 @@ records currently require an explicit operational retention policy before produc
 
 ## Dependency status
 
-Production dependency audits are required to have zero critical advisories.
+Production dependency audits are required to have zero known vulnerabilities. As of 2026-07-29,
+the desktop, platform and landing-page production dependency trees all pass `npm audit
+--omit=dev` with zero findings.
 
-As of 2026-07-29, npm reports `GHSA-qwww-vcr4-c8h2` against React Router `7.18.2`. The advisory is
-specific to React Server Components action handling. monitc uses declarative client-side
-`BrowserRouter` applications, has no React Router RSC server/action routes, and therefore does not
-expose the vulnerable execution path. No patched 7.x release is available at this date. This
-exception must be reviewed when a fixed upstream version is published or if the routing mode
-changes.
+The desktop, customer web app and operator console use React `19.2.8` and React Router `8.3.0`.
+The earlier React Router 7 advisory exception has been removed rather than carried as accepted
+risk. CI repeats the production audits so a newly disclosed issue cannot be silently ignored.
 
 ## Production checklist
 
