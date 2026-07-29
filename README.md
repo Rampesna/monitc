@@ -238,9 +238,9 @@ consistency, builds each OS package, requires signed/notarized macOS output, ver
 metadata, publishes the GitHub release and synchronizes the update feed over pinned SSH.
 
 ```bash
-npm run release:verify -- v1.4.0
-git tag -a v1.4.0 -m "monitc v1.4.0"
-git push origin v1.4.0
+npm run release:verify -- v1.4.1
+git tag -a v1.4.1 -m "monitc v1.4.1"
+git push origin v1.4.1
 ```
 
 Required release and deployment secrets are documented in

@@ -1,6 +1,6 @@
 {
   "name": "monitc",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Cross-platform server monitoring desktop application",
   "main": "./out/main/index.js",
   "author": {
@@ -100,6 +100,7 @@
       "category": "public.app-category.developer-tools",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "x64ArchFiles": "**/node_modules/node-pty/prebuilds/**",
       "entitlements": "resources/entitlements.mac.plist",
       "entitlementsInherit": "resources/entitlements.mac.plist",
       "notarize": true

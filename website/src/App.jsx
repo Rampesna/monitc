@@ -451,7 +451,7 @@ function Admin() {
 }
 
 export default function App() {
-  const [release, setRelease] = useState({ version: '1.4.0', summary: '', downloadUrl: '', publishedAt: null })
+  const [release, setRelease] = useState({ version: '1.4.1', summary: '', downloadUrl: '', publishedAt: null })
   useEffect(() => {
     fetch('/api/releases/latest').then((response) => response.ok ? response.json() : null).then((data) => data && setRelease(data)).catch(() => {})
   }, [])
