@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router'
 import { Box, AlertTriangle, ScrollText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useApp } from '../context/AppContext'

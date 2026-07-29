@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   TerminalSquare
 } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../context'
 import { Logo } from './Logo'
 

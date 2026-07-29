@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router'
 import { useAuth } from './context'
 import { Shell } from './components/Shell'
 import { LoginPage } from './pages/LoginPage'

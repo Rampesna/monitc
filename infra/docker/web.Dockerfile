@@ -1,11 +1,11 @@
-FROM node:22.14-alpine AS marketing
+FROM node:22.22-alpine AS marketing
 WORKDIR /build/website
 COPY website/package.json website/package-lock.json ./
 RUN npm ci
 COPY website/ ./
 RUN npm run build
 
-FROM node:22.14-alpine AS application
+FROM node:22.22-alpine AS application
 WORKDIR /build/platform
 ARG VITE_API_URL=https://monitc-api.talhacan.com
 ENV VITE_API_URL=$VITE_API_URL

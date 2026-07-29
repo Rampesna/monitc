@@ -1,4 +1,4 @@
-FROM node:22.14-alpine AS build
+FROM node:22.22-alpine AS build
 WORKDIR /build/platform
 ARG VITE_API_URL=https://monitc-api.talhacan.com
 ENV VITE_API_URL=$VITE_API_URL

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, Box } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'

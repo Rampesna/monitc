@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react'
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router'
 import { AppProvider, useApp } from './context/AppContext'
 import { MainLayout } from './components/layout/MainLayout'
 import { Dashboard } from './pages/Dashboard'

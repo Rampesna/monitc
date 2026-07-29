@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { ScrollText, Plus, X, Pause, Play } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import { useApp } from '../context/AppContext'
 import { Card } from '../components/common/Card'
 import { Button } from '../components/common/Button'

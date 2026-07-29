@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Activity, Bell, Check, ChevronDown, Download, Loader2, Minus, Search, Server, Settings2, Square, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import { useApp } from '../../context/AppContext'
 import { useAppUpdater } from '../../hooks/useAppUpdater'
 

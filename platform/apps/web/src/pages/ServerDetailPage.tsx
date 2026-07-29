@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { PodResourceMetric, ServerSummary, SystemMetricPoint } from '@monitc/shared'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
 import { bytes, millicores, rate, timeAgo } from '../lib/format'
 import { PageSkeleton } from '../components/Skeleton'

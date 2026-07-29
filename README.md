@@ -159,7 +159,7 @@ the header and under **Settings → General → Application updates**.
 
 ## Web platform development
 
-Requirements: Node.js `22.14+`, npm `10+`, PostgreSQL 16 with pgvector, and Redis 7.
+Requirements: Node.js `22.22+`, npm `10+`, PostgreSQL 16 with pgvector, and Redis 7.
 
 ```bash
 npm ci --prefix platform

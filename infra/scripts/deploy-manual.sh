@@ -32,7 +32,7 @@ if [ ! -f "$env_file" ]; then
   docker run --rm \
     -v "$repo_root:/workspace" \
     -w /workspace/platform \
-    node:22.14-bookworm-slim \
+    node:22.22-bookworm-slim \
     sh -ec 'npm ci --no-audit --no-fund && node scripts/generate-production-env.mjs /workspace/.env.production'
 fi
 chmod 600 "$env_file"

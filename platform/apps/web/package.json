@@ -14,9 +14,9 @@
     "@xterm/xterm": "^5.5.0",
     "libsodium-wrappers": "^0.8.2",
     "lucide-react": "^0.548.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router-dom": "7.18.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "react-router": "8.3.0",
     "recharts": "^3.3.0"
   },
   "devDependencies": {

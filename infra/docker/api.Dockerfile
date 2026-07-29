@@ -1,4 +1,4 @@
-FROM node:22.14-bookworm-slim AS build
+FROM node:22.22-bookworm-slim AS build
 WORKDIR /build/platform
 
 COPY platform/package.json platform/package-lock.json ./
@@ -13,7 +13,7 @@ RUN npm run build --workspace @monitc/shared \
     && npm run build --workspace @monitc/api \
     && npm prune --omit=dev
 
-FROM node:22.14-bookworm-slim AS runtime
+FROM node:22.22-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 RUN groupadd --system --gid 10001 monitc \

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { TerminalSquare, Plus, X, RefreshCw, Server as ServerIcon, Laptop } from 'lucide-react'
 import { useApp } from '../context/AppContext'
 import { Button } from '../components/common/Button'
