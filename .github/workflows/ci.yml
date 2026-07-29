@@ -21,8 +21,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.14.0
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            website/package-lock.json
+            platform/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -44,6 +48,28 @@ jobs:
 
       - name: Build website
         run: npm run build --prefix website
+
+      - name: Install platform dependencies
+        run: npm ci --prefix platform
+
+      - name: Validate platform
+        run: |
+          npm run typecheck --prefix platform
+          npm test --prefix platform
+          npm run build --prefix platform
+          npm audit --omit=dev --audit-level=critical --prefix platform
+
+      - name: Validate self-hosted Compose configuration
+        shell: bash
+        run: |
+          DEPLOYMENT_MODE=self-hosted \
+          APP_ORIGIN=https://monitc.example.com \
+          API_ORIGIN=https://monitc-api.example.com \
+          ADMIN_ORIGIN=https://monitc-admin.example.com \
+            node platform/scripts/generate-production-env.mjs infra/self-hosted/.env
+          docker compose --env-file infra/self-hosted/.env \
+            -f infra/self-hosted/docker-compose.yml config --quiet
+          rm infra/self-hosted/.env
 
       - name: Validate website Compose configuration
         run: UPDATE_ADMIN_TOKEN=ci-compose-validation docker compose -f website/docker-compose.yml config --quiet

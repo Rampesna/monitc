@@ -7,6 +7,11 @@ import { Badge } from '../components/common/Badge'
 import { Button } from '../components/common/Button'
 import { LogTerminal } from '../components/terminal/LogTerminal'
 import { Tabs } from '../components/common/Tabs'
+import { formatBytes } from '../lib/format'
+
+function formatCpu(millicores: number): string {
+  return millicores >= 1000 ? `${(millicores / 1000).toFixed(2)} cores` : `${Math.round(millicores)}m`
+}
 
 export function KubernetesPodDetail(): React.ReactElement {
   const { serverId, namespace, podName } = useParams<{ serverId: string; namespace: string; podName: string }>()
@@ -86,6 +91,53 @@ export function KubernetesPodDetail(): React.ReactElement {
           </pre>
         </Card>
       </div>
+
+      {pod && (
+        <Card>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-200">Live resource allocation</h2>
+              <p className="text-[10px] text-slate-600 mt-1">Current use compared with the pod&apos;s request or limit.</p>
+            </div>
+            <span className="text-[9px] text-slate-600">metrics-server + kubelet summary</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="k8s-detail-resource">
+              <span>CPU</span>
+              <strong>{formatCpu(pod.cpuUsageMillicores)}</strong>
+              <small>
+                / {pod.cpuLimitMillicores || pod.cpuRequestMillicores
+                  ? formatCpu(pod.cpuLimitMillicores || pod.cpuRequestMillicores)
+                  : 'not assigned'}
+              </small>
+              <div className="k8s-detail-bar">
+                <i style={{ width: `${Math.min(100, pod.cpuUsagePercent || 0)}%` }} />
+              </div>
+              <em>{pod.cpuUsagePercent === null ? 'No request or limit' : `${pod.cpuUsagePercent.toFixed(1)}% utilized`}</em>
+            </div>
+            <div className="k8s-detail-resource">
+              <span>Memory</span>
+              <strong>{formatBytes(pod.memoryUsageBytes, 1)}</strong>
+              <small>
+                / {pod.memoryLimitBytes || pod.memoryRequestBytes
+                  ? formatBytes(pod.memoryLimitBytes || pod.memoryRequestBytes, 1)
+                  : 'not assigned'}
+              </small>
+              <div className="k8s-detail-bar cyan">
+                <i style={{ width: `${Math.min(100, pod.memoryUsagePercent || 0)}%` }} />
+              </div>
+              <em>{pod.memoryUsagePercent === null ? 'No request or limit' : `${pod.memoryUsagePercent.toFixed(1)}% utilized`}</em>
+            </div>
+            <div className="k8s-detail-resource">
+              <span>Network traffic</span>
+              <strong>{formatBytes(pod.networkRxBytesPerSecond, 1)}/s ↓</strong>
+              <small>{formatBytes(pod.networkTxBytesPerSecond, 1)}/s ↑</small>
+              <div className="k8s-network-pulse"><i /><i /><i /><i /><i /></div>
+              <em>Live receive / transmit rate</em>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="space-y-3 flex flex-col" style={{ height: 400 }}>
         <div className="flex items-center justify-between">

@@ -1,0 +1,14 @@
+.git
+.DS_Store
+node_modules
+platform/node_modules
+platform/**/dist
+website/node_modules
+website/dist
+dist
+out
+runtime
+*.log
+.env
+.env.*
+!.env.example

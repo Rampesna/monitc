@@ -29,6 +29,8 @@ export const COMMANDS = {
     services: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get services --all-namespaces -o json 2>/dev/null`,
     deployments: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get deployments --all-namespaces -o json 2>/dev/null`,
     events: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get events --all-namespaces --sort-by='.lastTimestamp' -o json 2>/dev/null`,
+    podMetrics: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K get --raw /apis/metrics.k8s.io/v1beta1/pods 2>/dev/null`,
+    podNetworkStats: `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); for _N in $($_K get nodes -o name 2>/dev/null); do _NN=\${_N#node/}; printf '__MONITC_NODE__%s\\n' "$_NN"; $_K get --raw "/api/v1/nodes/$_NN/proxy/stats/summary" 2>/dev/null || printf '{}'; printf '\\n'; done`,
     logs: (ns: string, pod: string, container?: string): string =>
       `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG=/etc/rancher/k3s/k3s.yaml; _K=$(command -v kubectl 2>/dev/null || echo "k3s kubectl"); $_K logs -n ${ns} ${pod}${container ? ` -c ${container}` : ''} --tail=500 -f 2>&1`,
     podDescribe: (ns: string, pod: string): string =>

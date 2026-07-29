@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitc
+  labels:
+    app.kubernetes.io/name: monitc
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: monitc-quota
+  namespace: monitc
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "20"
+    limits.memory: 32Gi
+    requests.storage: 64Gi
+    persistentvolumeclaims: "8"
+    pods: "40"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: monitc-defaults
+  namespace: monitc
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      default:
+        cpu: "1"
+        memory: 1Gi

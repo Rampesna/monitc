@@ -1,0 +1,32 @@
+{
+  "name": "monitc-platform",
+  "version": "1.4.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @monitc/shared && npm run build --workspace @monitc/api && npm run build --workspace @monitc/web && npm run build --workspace @monitc/admin",
+    "build:api": "npm run build --workspace @monitc/api",
+    "build:web": "npm run build --workspace @monitc/web",
+    "build:admin": "npm run build --workspace @monitc/admin",
+    "dev:api": "npm run dev --workspace @monitc/api",
+    "dev:web": "npm run dev --workspace @monitc/web",
+    "dev:admin": "npm run dev --workspace @monitc/admin",
+    "typecheck": "npm run build --workspace @monitc/shared && npm run typecheck --workspace @monitc/api && npm run typecheck --workspace @monitc/web && npm run typecheck --workspace @monitc/admin",
+    "test": "npm run test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  },
+  "overrides": {
+    "vite": {
+      "esbuild": "0.28.1"
+    }
+  }
+}

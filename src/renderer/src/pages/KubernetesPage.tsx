@@ -8,6 +8,7 @@ import { Tabs } from '../components/common/Tabs'
 import { Badge } from '../components/common/Badge'
 import { SearchInput } from '../components/common/SearchInput'
 import type { K8sPod } from '../lib/types'
+import { formatBytes } from '../lib/format'
 
 function podStatusVariant(status: string): 'success' | 'danger' | 'warning' | 'info' | 'default' {
   if (status === 'Running') return 'success'
@@ -15,6 +16,22 @@ function podStatusVariant(status: string): 'success' | 'danger' | 'warning' | 'i
   if (['Pending', 'Terminating'].includes(status)) return 'warning'
   if (status === 'Succeeded') return 'info'
   return 'default'
+}
+
+function formatCpu(millicores: number): string {
+  return millicores >= 1000 ? `${(millicores / 1000).toFixed(2)} cores` : `${Math.round(millicores)}m`
+}
+
+function PodUsageBar({ value }: { value: number | null }): React.ReactElement {
+  if (value === null) return <span className="k8s-unassigned">not assigned</span>
+  const bounded = Math.max(0, Math.min(100, value))
+  const tone = bounded > 90 ? 'critical' : bounded > 75 ? 'warning' : ''
+  return (
+    <div className={`k8s-usage-bar ${tone}`}>
+      <span><i style={{ width: `${bounded}%` }} /></span>
+      <strong>{value.toFixed(1)}%</strong>
+    </div>
+  )
 }
 
 export function KubernetesPage(): React.ReactElement {
@@ -74,7 +91,21 @@ export function KubernetesPage(): React.ReactElement {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-[#1e1e2e]">
-                  {[t('common.namespace'), t('common.name'), t('common.status'), t('kubernetes.ready'), t('kubernetes.restarts'), t('kubernetes.age'), 'Node', 'IP', ''].map((h) => (
+                  {[
+                    t('common.namespace'),
+                    t('common.name'),
+                    t('common.status'),
+                    t('kubernetes.ready'),
+                    'CPU current / assigned',
+                    'CPU use',
+                    'RAM current / assigned',
+                    'RAM use',
+                    'Traffic ↓ / ↑',
+                    t('kubernetes.restarts'),
+                    'Node',
+                    t('kubernetes.age'),
+                    ''
+                  ].map((h) => (
                     <th key={h} className="text-left py-2 px-3 text-slate-500 font-medium">{h}</th>
                   ))}
                 </tr>
@@ -91,13 +122,34 @@ export function KubernetesPage(): React.ReactElement {
                     <td className="py-2 px-3"><Badge variant={podStatusVariant(pod.status)}>{pod.status}</Badge></td>
                     <td className="py-2 px-3 text-slate-400">{pod.ready}</td>
                     <td className="py-2 px-3">
+                      <span className="k8s-resource-value">{formatCpu(pod.cpuUsageMillicores)}</span>
+                      <small className="k8s-resource-assigned">
+                        / {pod.cpuLimitMillicores || pod.cpuRequestMillicores
+                          ? formatCpu(pod.cpuLimitMillicores || pod.cpuRequestMillicores)
+                          : 'not assigned'}
+                      </small>
+                    </td>
+                    <td className="py-2 px-3"><PodUsageBar value={pod.cpuUsagePercent} /></td>
+                    <td className="py-2 px-3">
+                      <span className="k8s-resource-value">{formatBytes(pod.memoryUsageBytes, 1)}</span>
+                      <small className="k8s-resource-assigned">
+                        / {pod.memoryLimitBytes || pod.memoryRequestBytes
+                          ? formatBytes(pod.memoryLimitBytes || pod.memoryRequestBytes, 1)
+                          : 'not assigned'}
+                      </small>
+                    </td>
+                    <td className="py-2 px-3"><PodUsageBar value={pod.memoryUsagePercent} /></td>
+                    <td className="py-2 px-3">
+                      <span className="k8s-network-in">{formatBytes(pod.networkRxBytesPerSecond, 1)}/s ↓</span>
+                      <small className="k8s-resource-assigned">{formatBytes(pod.networkTxBytesPerSecond, 1)}/s ↑</small>
+                    </td>
+                    <td className="py-2 px-3">
                       <span className={pod.restarts > 5 ? 'text-red-400 font-medium' : pod.restarts > 0 ? 'text-amber-400' : 'text-slate-400'}>
                         {pod.restarts}
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-slate-500">{pod.age}</td>
                     <td className="py-2 px-3 text-slate-500">{pod.node}</td>
-                    <td className="py-2 px-3 text-slate-600 font-mono">{pod.ip}</td>
+                    <td className="py-2 px-3 text-slate-500">{pod.age}</td>
                     <td className="py-2 px-3" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => navigate(`/logs?type=k8s&serverId=${sid}&namespace=${pod.namespace}&pod=${pod.name}&label=${encodeURIComponent(pod.name)}`)}

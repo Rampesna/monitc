@@ -1,28 +1,22 @@
-# monitc website and update feed
+# monitc website
 
-The public React landing page, protected release uploader and `electron-updater` compatible static feed run together on port `9119`.
+This package contains the public React landing page. In the current platform deployment it is
+built by `infra/docker/web.Dockerfile` and served together with the customer application:
 
-## Start
+- landing page: `/`
+- customer web app: `/app`
+- release metadata: `/api/releases/latest`
+- desktop update feed: `/updates`
+
+The production Kubernetes service listens on host port `9127`.
 
 ```bash
-cp .env.example .env
-# Replace UPDATE_ADMIN_TOKEN with a long random value.
-docker compose up -d --build
+npm ci
+npm run dev
+npm run build
 ```
 
-- Website: `http://127.0.0.1:9119`
-- Health: `http://127.0.0.1:9119/api/health`
-- Release administration: `http://127.0.0.1:9119/admin`
-- Updater feed: `http://127.0.0.1:9119/updates`
-
-The `data` directory is mounted into the container and contains release packages, manifests and the public latest-release metadata. It survives image rebuilds.
-
-## Reverse proxy
-
-Proxy `monitc.talhacan.com` to `http://127.0.0.1:9119`. Release uploads can be large, so configure the proxy with a request body limit and long upload timeout:
-
-```nginx
-client_max_body_size 1200m;
-proxy_read_timeout 1800s;
-proxy_send_timeout 1800s;
-```
+`server/` and `docker-compose.yml` remain as a compatibility profile for the earlier standalone
+landing/update service on port `9119`. New managed deployments use the authenticated platform API,
+the separate `monitcap.talhacan.com` operator console, and the shared
+`/www/wwwroot/monitc/runtime/releases` directory instead.
