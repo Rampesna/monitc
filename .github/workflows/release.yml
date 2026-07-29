@@ -254,4 +254,4 @@ jobs:
             release-assets/ "$DEPLOY_USER@$DEPLOY_HOST:$staging/"
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "find '$staging' -type f -maxdepth 1 -exec mv -f {} /www/wwwroot/monitc/runtime/releases/ \\; && rmdir '$staging'"
+            "find '$staging' -type f -maxdepth 1 -exec mv -f {} /www/wwwroot/monitc/runtime/releases/ \\; && rmdir '$staging' && /www/wwwroot/monitc/infra/scripts/sync-releases.sh"
