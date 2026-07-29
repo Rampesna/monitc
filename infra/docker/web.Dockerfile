@@ -21,7 +21,7 @@ RUN npm run build --workspace @monitc/shared \
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 ARG VITE_API_URL=https://monitc-api.talhacan.com
-COPY infra/docker/nginx-web.conf /tmp/default.conf
+COPY --chown=101:101 infra/docker/nginx-web.conf /tmp/default.conf
 RUN api_origin="${VITE_API_URL%/}" \
     && ws_origin="$(printf '%s' "$api_origin" | sed -e 's|^https:|wss:|' -e 's|^http:|ws:|')" \
     && sed -e "s|__MONITC_API_ORIGIN__|$api_origin|g" \
