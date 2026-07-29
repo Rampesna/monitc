@@ -72,6 +72,9 @@ esac
   -o yaml | "$kubectl_bin" apply -f -
 "$kubectl_bin" apply -f infra/k8s/base/01-config.yaml
 "$kubectl_bin" apply -f infra/k8s/base/10-postgres.yaml
+"$kubectl_bin" -n "$namespace" delete job redis-cluster-bootstrap \
+  --ignore-not-found \
+  --wait=true
 "$kubectl_bin" apply -f infra/k8s/base/11-redis-cluster.yaml
 
 echo "[deploy] waiting for stateful services"
