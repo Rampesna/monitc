@@ -20,6 +20,7 @@ spec:
         app.kubernetes.io/part-of: monitc
         app.kubernetes.io/component: admin-frontend
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 20
       securityContext:
         runAsNonRoot: true
