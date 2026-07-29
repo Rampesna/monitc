@@ -222,7 +222,7 @@ The script:
 
 1. creates production secrets only on the first install;
 2. builds revision-tagged API, web and admin images;
-3. imports images into K3s containerd;
+3. makes the images available to the configured K3s runtime;
 4. applies the `monitc` namespace, data services and application manifests;
 5. waits for each rollout;
 6. verifies health, pgcrypto/pgvector, Redis cluster state and workloads.
