@@ -26,6 +26,15 @@ const manifests = [
   { name: 'latest-linux.yml', extension: '.AppImage' }
 ]
 
+function unquote(value) {
+  const trimmed = value.trim()
+  const first = trimmed.at(0)
+  const last = trimmed.at(-1)
+  return first && first === last && (first === '"' || first === "'")
+    ? trimmed.slice(1, -1)
+    : trimmed
+}
+
 let invalid = false
 for (const manifest of manifests) {
   const file = files.find((candidate) => basename(candidate) === manifest.name)
@@ -36,7 +45,8 @@ for (const manifest of manifests) {
   }
 
   const content = readFileSync(file, 'utf8')
-  const urls = [...content.matchAll(/^\s*-?\s*url:\s*["']?([^"'\s]+)["']?\s*$/gm)].map((match) => basename(match[1]))
+  const urls = [...content.matchAll(/^\s*-\s*url:\s*(.+?)\s*$/gm)]
+    .map((match) => basename(unquote(match[1])))
   const installer = urls.find((name) => name.endsWith(manifest.extension))
   if (!installer) {
     console.error(`${manifest.name} does not reference a ${manifest.extension} package`)
