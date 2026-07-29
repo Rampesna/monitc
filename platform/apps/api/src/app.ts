@@ -71,7 +71,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     keyGenerator: (request) => request.ip
   })
 
-  app.get('/health/live', async () => ({ status: 'ok', service: 'monitc-api', version: '1.4.0' }))
+  app.get('/health/live', async () => ({ status: 'ok', service: 'monitc-api', version: '1.4.1' }))
   app.get('/health/ready', async (_request, reply) => {
     try {
       await Promise.all([db.query('SELECT 1'), redis.ping()])

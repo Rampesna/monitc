@@ -59,7 +59,7 @@ function listFiles() {
 }
 
 function readRelease() {
-  if (!existsSync(releaseFile)) return { version: '1.4.0', summary: 'Desktop, self-hosted and managed cloud operations in one calm workspace.', publishedAt: null, downloads: [] }
+  if (!existsSync(releaseFile)) return { version: '1.4.1', summary: 'Desktop, self-hosted and managed cloud operations in one calm workspace.', publishedAt: null, downloads: [] }
   return JSON.parse(readFileSync(releaseFile, 'utf8'))
 }
 
