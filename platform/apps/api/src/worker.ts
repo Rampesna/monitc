@@ -4,6 +4,7 @@ import { migrateDatabase } from './db/migrate.js'
 import { seedPlans } from './db/seed.js'
 import { closeDatabase } from './db/pool.js'
 import { closeRedis } from './lib/redis.js'
+import { withStartupRetry } from './lib/startup-retry.js'
 import { runCollectionCycle } from './worker/collector-loop.js'
 
 let stopping = false
@@ -18,8 +19,10 @@ process.on('SIGTERM', () => void stop())
 process.on('SIGINT', () => void stop())
 
 async function main(): Promise<void> {
-  await migrateDatabase()
-  await seedPlans()
+  await withStartupRetry('database initialization', async () => {
+    await migrateDatabase()
+    await seedPlans()
+  })
   console.log(`[worker] collector started with ${config.WORKER_POLL_SECONDS}s base interval`)
   while (!stopping) {
     const startedAt = Date.now()
