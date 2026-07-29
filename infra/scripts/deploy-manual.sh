@@ -84,6 +84,21 @@ echo "[deploy] waiting for stateful services"
 "$kubectl_bin" -n "$namespace" wait --for=condition=complete job/redis-cluster-bootstrap --timeout=300s
 
 "$kubectl_bin" apply -f infra/k8s/base/12-backups.yaml
+backup_phase="$("$kubectl_bin" -n "$namespace" get pvc backups -o jsonpath='{.status.phase}')"
+if [ "$backup_phase" != "Bound" ]; then
+  echo "[deploy] binding and validating the backup volume with an initial dump"
+  "$kubectl_bin" -n "$namespace" delete job postgres-backup-initial \
+    --ignore-not-found \
+    --wait=true
+  "$kubectl_bin" -n "$namespace" create job \
+    --from=cronjob/postgres-backup \
+    postgres-backup-initial
+  "$kubectl_bin" -n "$namespace" wait \
+    --for=condition=complete \
+    job/postgres-backup-initial \
+    --timeout=300s
+fi
+
 sed "s|monitc/api:local|${api_image}|g" infra/k8s/base/20-api.yaml | "$kubectl_bin" apply -f -
 sed "s|monitc/web:local|${web_image}|g" infra/k8s/base/21-web.yaml | "$kubectl_bin" apply -f -
 sed "s|monitc/admin:local|${admin_image}|g" infra/k8s/base/22-admin.yaml | "$kubectl_bin" apply -f -
