@@ -71,6 +71,7 @@ esac
   --dry-run=client \
   -o yaml | "$kubectl_bin" apply -f -
 "$kubectl_bin" apply -f infra/k8s/base/01-config.yaml
+"$kubectl_bin" apply -f infra/k8s/base/02-storage.yaml
 "$kubectl_bin" apply -f infra/k8s/base/10-postgres.yaml
 "$kubectl_bin" -n "$namespace" delete job redis-cluster-bootstrap \
   --ignore-not-found \
@@ -97,6 +98,33 @@ for deployment in api worker web admin; do
     exit 1
   fi
 done
+
+if find "$repo_root/runtime/releases" -mindepth 1 -maxdepth 1 -type f -print -quit | grep -q .; then
+  api_pod="$("$kubectl_bin" -n "$namespace" get pod \
+    -l app.kubernetes.io/name=api \
+    --field-selector=status.phase=Running \
+    -o jsonpath='{.items[0].metadata.name}')"
+  source_fingerprint="$(
+    find "$repo_root/runtime/releases" -maxdepth 1 -type f \
+      -printf '%f\0%s\0%T@\0' |
+      sort -z |
+      sha256sum |
+      awk '{print $1}'
+  )"
+  synced_fingerprint="$(
+    "$kubectl_bin" -n "$namespace" exec "$api_pod" -- \
+      sh -ec 'cat /var/lib/monitc/releases/.source-fingerprint 2>/dev/null || true'
+  )"
+
+  if [ "$source_fingerprint" != "$synced_fingerprint" ]; then
+    echo "[deploy] syncing staged desktop release artifacts into the releases volume"
+    tar -C "$repo_root/runtime/releases" -cf - . |
+      "$kubectl_bin" -n "$namespace" exec -i "$api_pod" -- \
+        tar -C /var/lib/monitc/releases -xf -
+    "$kubectl_bin" -n "$namespace" exec "$api_pod" -- \
+      sh -ec "printf '%s\\n' '$source_fingerprint' > /var/lib/monitc/releases/.source-fingerprint"
+  fi
+fi
 
 "$repo_root/infra/scripts/verify-live.sh"
 echo "[deploy] revision $revision is healthy"

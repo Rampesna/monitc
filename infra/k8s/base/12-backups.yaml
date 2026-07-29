@@ -82,9 +82,8 @@ spec:
                   mountPath: /tmp
           volumes:
             - name: backups
-              hostPath:
-                path: /www/wwwroot/monitc/runtime/backups
-                type: DirectoryOrCreate
+              persistentVolumeClaim:
+                claimName: backups
             - name: tmp
               emptyDir:
                 sizeLimit: 256Mi

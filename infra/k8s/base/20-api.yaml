@@ -114,9 +114,8 @@ spec:
               mountPath: /tmp
       volumes:
         - name: releases
-          hostPath:
-            path: /www/wwwroot/monitc/runtime/releases
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: releases
         - name: tmp
           emptyDir:
             sizeLimit: 512Mi
