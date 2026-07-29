@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { createReadStream, existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
 import process from 'node:process'
 
@@ -35,6 +36,16 @@ function unquote(value) {
     : trimmed
 }
 
+function digest(file) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash('sha512')
+    const stream = createReadStream(file)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('error', reject)
+    stream.on('end', () => resolve(hash.digest('base64')))
+  })
+}
+
 let invalid = false
 for (const manifest of manifests) {
   const file = files.find((candidate) => basename(candidate) === manifest.name)
@@ -45,15 +56,30 @@ for (const manifest of manifests) {
   }
 
   const content = readFileSync(file, 'utf8')
-  const urls = [...content.matchAll(/^\s*-\s*url:\s*(.+?)\s*$/gm)]
-    .map((match) => basename(unquote(match[1])))
-  const installer = urls.find((name) => name.endsWith(manifest.extension))
+  const entries = [...content.matchAll(
+    /^\s*-\s*url:\s*(.+?)\s*$\r?\n\s+sha512:\s*(.+?)\s*$\r?\n\s+size:\s*(\d+)\s*$/gm
+  )].map((match) => ({
+    name: basename(unquote(match[1])),
+    sha512: unquote(match[2]),
+    size: Number(match[3])
+  }))
+  const installer = entries.find(({ name }) => name.endsWith(manifest.extension))
   if (!installer) {
     console.error(`${manifest.name} does not reference a ${manifest.extension} package`)
     invalid = true
-  } else if (!names.has(installer)) {
-    console.error(`${manifest.name} references missing package: ${installer}`)
+  } else if (!names.has(installer.name)) {
+    console.error(`${manifest.name} references missing package: ${installer.name}`)
     invalid = true
+  } else {
+    const installerFile = files.find((candidate) => basename(candidate) === installer.name)
+    if (statSync(installerFile).size !== installer.size) {
+      console.error(`${manifest.name} contains the wrong size for ${installer.name}`)
+      invalid = true
+    }
+    if (await digest(installerFile) !== installer.sha512) {
+      console.error(`${manifest.name} contains the wrong SHA-512 for ${installer.name}`)
+      invalid = true
+    }
   }
 }
 
