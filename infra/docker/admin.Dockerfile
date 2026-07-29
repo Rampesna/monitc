@@ -14,7 +14,7 @@ RUN npm run build --workspace @monitc/shared \
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
 ARG VITE_API_URL=https://monitc-api.talhacan.com
-COPY infra/docker/nginx-admin.conf /tmp/default.conf
+COPY --chown=101:101 infra/docker/nginx-admin.conf /tmp/default.conf
 RUN api_origin="${VITE_API_URL%/}" \
     && sed "s|__MONITC_API_ORIGIN__|$api_origin|g" \
            /tmp/default.conf > /etc/nginx/conf.d/default.conf \
