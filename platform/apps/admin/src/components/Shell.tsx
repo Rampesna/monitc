@@ -14,7 +14,7 @@ import {
   Users
 } from 'lucide-react'
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router'
 import { useAuth } from '../context'
 import { Logo } from './Logo'
 

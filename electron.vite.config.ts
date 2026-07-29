@@ -32,7 +32,7 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'react-vendor': ['react', 'react-dom', 'react-router'],
             'recharts-vendor': ['recharts'],
             'xterm-vendor': ['@xterm/xterm', '@xterm/addon-fit', '@xterm/addon-search'],
             'icons-vendor': ['lucide-react']

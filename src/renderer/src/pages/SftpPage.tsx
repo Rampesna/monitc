@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router'
 import {
   ChevronRight, Clipboard, Copy, Download, Edit3, File, FilePlus2,
   Folder, FolderOpen, FolderPlus, HardDrive, Home, LockKeyhole,

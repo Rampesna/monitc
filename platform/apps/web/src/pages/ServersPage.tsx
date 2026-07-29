@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, MoreHorizontal, Plus, RefreshCw, Search, Server, ShieldCheck, Trash2 } from 'lucide-react'
 import type { ServerSummary } from '@monitc/shared'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { api } from '../lib/api'
 import { timeAgo } from '../lib/format'
 import { AddServerModal } from '../components/AddServerModal'

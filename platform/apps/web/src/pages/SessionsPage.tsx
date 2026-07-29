@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight, FileCode2, Server, TerminalSquare } from 'lucide-react'
 import type { ServerSummary } from '@monitc/shared'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { api } from '../lib/api'
 import { PageSkeleton } from '../components/Skeleton'
 

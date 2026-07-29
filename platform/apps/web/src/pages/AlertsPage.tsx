@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Bell, Check, Clock3, Mail, Plus, ShieldAlert, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import { Modal } from '../components/Modal'
 import { PageSkeleton } from '../components/Skeleton'
 import { useAuth } from '../context'

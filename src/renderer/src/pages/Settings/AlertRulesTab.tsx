@@ -5,7 +5,7 @@ import { Card } from '../../components/common/Card'
 import { Button } from '../../components/common/Button'
 import { useApp } from '../../context/AppContext'
 import { ALERT_TEMPLATES, METRIC_TYPES, isEventMetric } from '../../lib/constants'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 
 export function AlertRulesTab(): React.ReactElement {
   const { t } = useTranslation()

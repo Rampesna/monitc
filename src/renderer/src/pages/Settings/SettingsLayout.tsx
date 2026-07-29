@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router'
 import { Settings, Server, Link2, Bell, Sliders, GitBranch } from 'lucide-react'
 import { ServersTab } from './ServersTab'
 import { IntegrationsTab } from './IntegrationsTab'
