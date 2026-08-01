@@ -42,7 +42,7 @@ func LoadConfig() (Config, error) {
 		TrustDomain:          envOr("MONITC_AGENT_TRUST_DOMAIN", "monitc.talhacan.com"),
 		ClientCertificateTTL: durationOr("MONITC_AGENT_CERT_TTL", 7*24*time.Hour),
 		SampleInterval:       durationOr("MONITC_AGENT_SAMPLE_INTERVAL", time.Second),
-		BatchInterval:        durationOr("MONITC_AGENT_BATCH_INTERVAL", 5*time.Second),
+		BatchInterval:        durationOr("MONITC_AGENT_BATCH_INTERVAL", 250*time.Millisecond),
 		HeartbeatInterval:    durationOr("MONITC_AGENT_HEARTBEAT_INTERVAL", 15*time.Second),
 		MaxReceiveBytes:      integerOr("MONITC_AGENT_MAX_RECEIVE_BYTES", 16<<20),
 		MaxSendBytes:         integerOr("MONITC_AGENT_MAX_SEND_BYTES", 4<<20),
@@ -60,8 +60,8 @@ func LoadConfig() (Config, error) {
 	if config.SampleInterval < 250*time.Millisecond || config.SampleInterval > time.Minute {
 		return Config{}, errors.New("MONITC_AGENT_SAMPLE_INTERVAL must be between 250ms and 1m")
 	}
-	if config.BatchInterval < config.SampleInterval || config.BatchInterval > time.Minute {
-		return Config{}, errors.New("MONITC_AGENT_BATCH_INTERVAL must be at least the sample interval and no more than 1m")
+	if config.BatchInterval < 250*time.Millisecond || config.BatchInterval > time.Minute {
+		return Config{}, errors.New("MONITC_AGENT_BATCH_INTERVAL must be between 250ms and 1m")
 	}
 	if config.HeartbeatInterval < 5*time.Second || config.HeartbeatInterval > 5*time.Minute {
 		return Config{}, errors.New("MONITC_AGENT_HEARTBEAT_INTERVAL must be between 5s and 5m")
