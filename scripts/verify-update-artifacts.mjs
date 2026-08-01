@@ -46,6 +46,11 @@ function digest(file) {
   })
 }
 
+function topLevelValue(content, key) {
+  const match = content.match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'))
+  return match ? unquote(match[1]) : null
+}
+
 let invalid = false
 for (const manifest of manifests) {
   const file = files.find((candidate) => basename(candidate) === manifest.name)
@@ -67,19 +72,35 @@ for (const manifest of manifests) {
   if (!installer) {
     console.error(`${manifest.name} does not reference a ${manifest.extension} package`)
     invalid = true
-  } else if (!names.has(installer.name)) {
-    console.error(`${manifest.name} references missing package: ${installer.name}`)
+  }
+
+  for (const entry of entries) {
+    if (!names.has(entry.name)) {
+      console.error(`${manifest.name} references missing package: ${entry.name}`)
+      invalid = true
+      continue
+    }
+
+    const packageFile = files.find((candidate) => basename(candidate) === entry.name)
+    if (statSync(packageFile).size !== entry.size) {
+      console.error(`${manifest.name} contains the wrong size for ${entry.name}`)
+      invalid = true
+    }
+    if (await digest(packageFile) !== entry.sha512) {
+      console.error(`${manifest.name} contains the wrong SHA-512 for ${entry.name}`)
+      invalid = true
+    }
+  }
+
+  const legacyPath = topLevelValue(content, 'path')
+  const legacySha512 = topLevelValue(content, 'sha512')
+  const legacyEntry = entries.find(({ name }) => name === basename(legacyPath ?? ''))
+  if (!legacyPath || !legacySha512 || !legacyEntry) {
+    console.error(`${manifest.name} contains an invalid legacy path/SHA-512 mapping`)
     invalid = true
-  } else {
-    const installerFile = files.find((candidate) => basename(candidate) === installer.name)
-    if (statSync(installerFile).size !== installer.size) {
-      console.error(`${manifest.name} contains the wrong size for ${installer.name}`)
-      invalid = true
-    }
-    if (await digest(installerFile) !== installer.sha512) {
-      console.error(`${manifest.name} contains the wrong SHA-512 for ${installer.name}`)
-      invalid = true
-    }
+  } else if (legacySha512 !== legacyEntry.sha512) {
+    console.error(`${manifest.name} legacy SHA-512 does not match ${legacyEntry.name}`)
+    invalid = true
   }
 }
 
