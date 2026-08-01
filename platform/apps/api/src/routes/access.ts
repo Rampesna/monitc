@@ -18,8 +18,8 @@ const moveSchema = z.object({ source: pathSchema, target: pathSchema })
 
 interface ServerSecretRow {
   id: string
-  secret_ciphertext: string
-  secret_key_id: string
+  secret_ciphertext: string | null
+  secret_key_id: string | null
   entitlements: Record<string, unknown>
 }
 
@@ -47,7 +47,7 @@ async function withSftp<T>(
   server: ServerSecretRow,
   operation: (sftp: SFTPWrapper, connection: SshConnection) => Promise<T>
 ): Promise<T> {
-  const secret = await decryptVaultSecret(server.secret_ciphertext, server.secret_key_id)
+  const secret = await decryptVaultSecret(...requiredSshSecret(server))
   const connection = await SshConnection.connect(secret)
   try {
     const sftp = await connection.sftp()
@@ -55,6 +55,15 @@ async function withSftp<T>(
   } finally {
     connection.close()
   }
+}
+
+function requiredSshSecret(server: ServerSecretRow): [string, string] {
+  if (!server.secret_ciphertext || !server.secret_key_id) {
+    const error = new Error('SSH fallback is not configured for this agent connection.') as Error & { statusCode: number }
+    error.statusCode = 409
+    throw error
+  }
+  return [server.secret_ciphertext, server.secret_key_id]
 }
 
 function lstat(sftp: SFTPWrapper, target: string): Promise<Stats> {
@@ -166,6 +175,9 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!server) return reply.code(404).send({ error: 'server_not_found' })
     if (!server.entitlements.webTerminal) {
       return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'webTerminal' })
+    }
+    if (!server.secret_ciphertext || !server.secret_key_id) {
+      return reply.code(409).send({ error: 'ssh_fallback_not_configured' })
     }
     const ticket = crypto.randomUUID()
     await redis.set(
@@ -285,7 +297,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const query = z.object({ path: pathSchema }).safeParse(request.query)
     if (!query.success) return reply.code(400).send({ error: 'validation_error' })
     const target = safePath(query.data.path)
-    const secret = await decryptVaultSecret(server.secret_ciphertext, server.secret_key_id)
+    const secret = await decryptVaultSecret(...requiredSshSecret(server))
     const connection = await SshConnection.connect(secret)
     try {
       const sftp = await connection.sftp()
@@ -314,7 +326,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const query = z.object({ path: pathSchema.default('/') }).safeParse(request.query)
     if (!query.success) return reply.code(400).send({ error: 'validation_error' })
     const directory = safePath(query.data.path)
-    const secret = await decryptVaultSecret(server.secret_ciphertext, server.secret_key_id)
+    const secret = await decryptVaultSecret(...requiredSshSecret(server))
     const connection = await SshConnection.connect(secret)
     try {
       const sftp = await connection.sftp()
@@ -392,7 +404,7 @@ export async function terminalSocketRoutes(app: FastifyInstance): Promise<void> 
         socket.close(1008, 'Access denied')
         return
       }
-      const secret = await decryptVaultSecret(server.secret_ciphertext, server.secret_key_id)
+      const secret = await decryptVaultSecret(...requiredSshSecret(server))
       connection = await SshConnection.connect(secret)
       connection.client.shell(
         { term: 'xterm-256color', cols: 120, rows: 32 },

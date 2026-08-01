@@ -1,4 +1,4 @@
-export const PLATFORM_VERSION = '1.4.1'
+export const PLATFORM_VERSION = '1.5.0'
 
 export type PlanCode = 'community' | 'solo' | 'team' | 'scale'
 export type WorkspaceRole = 'owner' | 'admin' | 'operator' | 'viewer'
@@ -15,6 +15,7 @@ export interface PlanEntitlements {
   alerts: boolean
   auditLog: boolean
   agentMode: boolean
+  agentSampleIntervalMs: number
   prioritySupport: boolean
 }
 
@@ -44,9 +45,10 @@ export const PLANS: PlanDefinition[] = [
       alerts: false,
       auditLog: false,
       agentMode: true,
+      agentSampleIntervalMs: 5000,
       prioritySupport: false
     },
-    features: ['2 servers', '24-hour metric history', 'Desktop and self-hosted mode', 'Kubernetes workload visibility']
+    features: ['2 servers', '24-hour metric history', 'Native agent with 5s telemetry', 'Desktop and self-hosted mode']
   },
   {
     code: 'solo',
@@ -64,9 +66,10 @@ export const PLANS: PlanDefinition[] = [
       alerts: true,
       auditLog: false,
       agentMode: true,
+      agentSampleIntervalMs: 1000,
       prioritySupport: false
     },
-    features: ['5 managed servers', '30-day history', 'Web terminal and SFTP', 'Sustained in-app alert rules']
+    features: ['5 managed servers', '1s native telemetry', '30-day history', 'Web terminal and SFTP', 'Sustained in-app alert rules']
   },
   {
     code: 'team',
@@ -83,9 +86,10 @@ export const PLANS: PlanDefinition[] = [
       alerts: true,
       auditLog: true,
       agentMode: true,
+      agentSampleIntervalMs: 500,
       prioritySupport: true
     },
-    features: ['25 managed servers', '5 team seats', '90-day history', 'RBAC and audit log', 'Priority support']
+    features: ['25 managed servers', '500ms native telemetry', '5 team seats', '90-day history', 'RBAC and audit log']
   },
   {
     code: 'scale',
@@ -102,9 +106,10 @@ export const PLANS: PlanDefinition[] = [
       alerts: true,
       auditLog: true,
       agentMode: true,
+      agentSampleIntervalMs: 250,
       prioritySupport: true
     },
-    features: ['Custom server and seat limits', '365-day history', 'SSO-ready architecture', 'Dedicated onboarding', 'Custom SLA']
+    features: ['Custom server and seat limits', '250ms native telemetry', '365-day history', 'Dedicated onboarding', 'Custom SLA']
   }
 ]
 
@@ -139,8 +144,36 @@ export interface ServerSummary {
   host?: string
   port?: number
   username?: string
+  sshFallbackConfigured: boolean
+  agent?: AgentStatus
   lastSeenAt: string | null
   createdAt: string
+}
+
+export interface AgentStatus {
+  id: string
+  status: 'paired' | 'connected' | 'degraded' | 'offline' | 'revoked'
+  version: string
+  operatingSystem: string
+  architecture: string
+  kernelVersion: string
+  capabilities: string[]
+  enabledCapabilities: string[]
+  ebpfActive: boolean
+  lastSeenAt: string | null
+  lastHeartbeatAt: string | null
+  certificateExpiresAt: string
+  spoolBytes: number
+  spoolBatches: number
+}
+
+export interface AgentPairingDetails {
+  token: string
+  expiresAt: string
+  gatewayAddress: string
+  gatewayServerName: string
+  bootstrapCAUrl: string
+  installCommand: string
 }
 
 export interface SystemMetricPoint {
@@ -150,6 +183,19 @@ export interface SystemMetricPoint {
   diskPercent: number
   networkRxBytesPerSecond: number
   networkTxBytesPerSecond: number
+  source?: 'ssh' | 'agent' | 'rollup'
+}
+
+export interface AgentTelemetryLatest extends SystemMetricPoint {
+  sampleIntervalNanos: number
+  collectionDurationNanos: number
+  monotonicNanos: string | null
+  ebpfActive: boolean
+  schedulerSwitches: number
+  tcpRetransmits: number
+  loadAverage1: number
+  loadAverage5: number
+  loadAverage15: number
 }
 
 export interface PodResourceMetric {
@@ -165,6 +211,21 @@ export interface PodResourceMetric {
   cpuUsagePercent: number | null
   memoryUsageBytes: number
   memoryRequestBytes: number
+  memoryLimitBytes: number
+  memoryUsagePercent: number | null
+  networkRxBytesPerSecond: number
+  networkTxBytesPerSecond: number
+  sampledAt: string
+}
+
+export interface DockerContainerMetric {
+  id: string
+  name: string
+  image: string
+  state: string
+  status: string
+  cpuPercent: number
+  memoryUsageBytes: number
   memoryLimitBytes: number
   memoryUsagePercent: number | null
   networkRxBytesPerSecond: number

@@ -19,6 +19,10 @@ const deploymentMode = process.env.DEPLOYMENT_MODE === 'self-hosted' ? 'self-hos
 const appOrigin = process.env.APP_ORIGIN || 'https://monitc.talhacan.com'
 const adminOrigin = process.env.ADMIN_ORIGIN || 'https://monitcap.talhacan.com'
 const apiOrigin = process.env.API_ORIGIN || 'https://monitc-api.talhacan.com'
+const agentGatewayAddress = process.env.AGENT_GATEWAY_PUBLIC_ADDRESS || (
+  deploymentMode === 'self-hosted' ? 'monitc-agent.example.com:443' : 'monitc-agent.talhacan.com:443'
+)
+const agentGatewayServerName = process.env.AGENT_GATEWAY_SERVER_NAME || agentGatewayAddress.replace(/:\d+$/, '')
 const bootstrapEmail = process.env.BOOTSTRAP_ADMIN_EMAIL || (
   deploymentMode === 'hosted' ? 'rampesna@gmail.com' : 'admin@monitc.local'
 )
@@ -63,6 +67,22 @@ const lines = [
   `PASSWORD_PEPPER=${secret(32)}`,
   'COOKIE_DOMAIN=',
   'RELEASES_PATH=/var/lib/monitc/releases',
+  `AGENT_GATEWAY_PUBLIC_ADDRESS=${agentGatewayAddress}`,
+  `AGENT_GATEWAY_SERVER_NAME=${agentGatewayServerName}`,
+  'AGENT_CA_CERT_PATH=/var/run/monitc-agent-ca/ca.crt',
+  `AGENT_INSTALL_URL=${appOrigin}/install-agent.sh`,
+  'MONITC_AGENT_GATEWAY_LISTEN=:9443',
+  'MONITC_AGENT_GATEWAY_STATE_DIR=/var/lib/monitc/agent-pki',
+  'MONITC_AGENT_CA_CERT=/var/lib/monitc/agent-pki/ca.crt',
+  'MONITC_AGENT_CA_KEY=/var/lib/monitc/agent-pki/ca.key',
+  'MONITC_AGENT_SERVER_CERT=/var/lib/monitc/agent-pki/server.crt',
+  'MONITC_AGENT_SERVER_KEY=/var/lib/monitc/agent-pki/server.key',
+  `MONITC_AGENT_SERVER_NAMES=${agentGatewayServerName}`,
+  `MONITC_AGENT_TRUST_DOMAIN=${new URL(appOrigin).hostname}`,
+  'MONITC_AGENT_CERT_TTL=168h',
+  'MONITC_AGENT_SAMPLE_INTERVAL=1s',
+  'MONITC_AGENT_BATCH_INTERVAL=5s',
+  'MONITC_AGENT_HEARTBEAT_INTERVAL=15s',
   'WORKER_POLL_SECONDS=30',
   `ALLOW_PRIVATE_TARGETS=${deploymentMode === 'self-hosted' ? 'true' : 'false'}`,
   `BOOTSTRAP_ADMIN_EMAIL=${bootstrapEmail}`,

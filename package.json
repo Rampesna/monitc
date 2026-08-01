@@ -1,6 +1,6 @@
 {
   "name": "monitc",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "Cross-platform server monitoring desktop application",
   "main": "./out/main/index.js",
   "author": {

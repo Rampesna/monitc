@@ -10,6 +10,7 @@ applications in other namespaces are not modified.
 | Web | 2 | Read-only desktop release mount |
 | Admin | 2 | None |
 | API | 2–6 (HPA) | Read/write 10 Gi desktop release PVC |
+| Native-agent gateway | 1 | 1 Gi private CA PVC |
 | Collector worker | 1 | PostgreSQL |
 | PostgreSQL + pgvector | 1 | 20 Gi `local-path` PVC |
 | Redis Cluster | 3 masters | 2 Gi PVC per pod |
@@ -28,6 +29,7 @@ Create these records pointing to the K3s host:
 | `monitc.talhacan.com` | `http://127.0.0.1:9127` |
 | `monitc-api.talhacan.com` | `http://127.0.0.1:9128` |
 | `monitcap.talhacan.com` | `http://127.0.0.1:9129` |
+| `monitc-agent.talhacan.com` | raw TCP/TLS passthrough to `127.0.0.1:9130` |
 
 For all three:
 
@@ -38,6 +40,11 @@ For all three:
 For `monitc-api.talhacan.com`, also forward `Upgrade` and `Connection` headers and disable response
 buffering for the terminal WebSocket. Large SFTP uploads may require increasing the proxy request
 body limit above the API's 2 GiB per-file ceiling.
+
+`monitc-agent.talhacan.com` is different from the three browser endpoints: it carries HTTP/2 gRPC
+inside mutual TLS and must use an aaPanel stream/raw TCP proxy or direct firewall/NAT rule. Preserve
+SNI and do not configure an HTTP location proxy. The public hostname is distributed in the agent
+installation command and therefore must match the gateway certificate.
 
 The web container serves the landing page at `/`, the customer application at `/app`, and desktop
 release artifacts at `/updates`.
@@ -71,9 +78,10 @@ Deploy:
 ./infra/scripts/deploy-manual.sh
 ```
 
-On first run, the script generates `.env.production`, builds immutable images, applies resources,
-waits for rollouts and runs live verification. Record the generated `BOOTSTRAP_ADMIN_PASSWORD`
-through a secure channel and change it on first login.
+On first run, the script generates `.env.production`, builds immutable application and agent-gateway
+images, cross-compiles Linux amd64/arm64 agents, applies resources, waits for rollouts and runs live
+verification. Record the generated `BOOTSTRAP_ADMIN_PASSWORD` through a secure channel and change it
+on first login.
 
 ## Manual update
 
@@ -127,7 +135,8 @@ production use, replace root login with a dedicated user and tightly scoped sudo
 | `MONITC_DEPLOY_SSH_KEY` | Release upload SSH key |
 | `MONITC_DEPLOY_KNOWN_HOSTS` | Pinned host key |
 
-The workflow uploads already verified packages and updater metadata to
+The workflow uploads already verified desktop packages, native-agent binaries/checksums and updater
+metadata to
 `/www/wwwroot/monitc/runtime/releases`, then invokes `infra/scripts/sync-releases.sh`. The API and
 web pods share the resulting release PVC; the web service exposes it at `/updates`.
 
@@ -140,6 +149,7 @@ kubectl -n monitc top pods
 curl --fail http://127.0.0.1:9128/health/ready
 curl --fail http://127.0.0.1:9127/health
 curl --fail http://127.0.0.1:9129/health
+openssl s_client -connect 127.0.0.1:9130 -servername monitc-agent.talhacan.com </dev/null
 ```
 
 The verification script confirms:
@@ -147,6 +157,7 @@ The verification script confirms:
 - HTTP readiness;
 - PostgreSQL `pgcrypto` and `vector` extensions;
 - Redis `cluster_state:ok`;
+- the agent CA public endpoint, gateway TCP listener and gateway rollout;
 - all application rollouts.
 
 ## Backups and recovery
@@ -169,8 +180,9 @@ createdb monitc_restore_test
 pg_restore --exit-on-error --no-owner --no-acl -d monitc_restore_test monitc.dump
 ```
 
-Database dumps are insufficient by themselves. Preserve an independently encrypted copy of
-`.env.production`; without the vault and PII keys, encrypted fields cannot be recovered.
+Database dumps are insufficient by themselves. Preserve independently encrypted copies of
+`.env.production` and the `agent-pki` PVC; without the vault/PII keys encrypted fields cannot be
+recovered, while losing the agent CA requires every monitored server to be paired again.
 
 ## Rollback
 
@@ -180,6 +192,7 @@ Inspect history before rollback:
 ```bash
 kubectl -n monitc rollout history deployment/api
 kubectl -n monitc rollout undo deployment/api
+kubectl -n monitc rollout undo deployment/agent-gateway
 ```
 
 Repeat for `web` or `admin` if needed. Database migrations in this release are additive; a future

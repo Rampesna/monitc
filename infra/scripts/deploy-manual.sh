@@ -10,9 +10,11 @@ revision="${DEPLOY_REVISION:-$(git rev-parse --short=12 HEAD 2>/dev/null || date
 api_image="monitc/api:${revision}"
 web_image="monitc/web:${revision}"
 admin_image="monitc/admin:${revision}"
+agent_gateway_image="monitc/agent-gateway:${revision}"
 env_file="${MONITC_ENV_FILE:-$repo_root/.env.production}"
+release_version="${MONITC_RELEASE_VERSION:-$(node -p "require('./package.json').version")}"
 
-required=(docker k3s "$kubectl_bin")
+required=(docker k3s node sha256sum "$kubectl_bin")
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "[deploy] missing required command: $command_name" >&2
@@ -45,10 +47,37 @@ chown -R 999:999 "$repo_root/runtime/backups"
 find "$repo_root/runtime/releases" -type d -exec chmod 755 {} +
 find "$repo_root/runtime/releases" -type f -exec chmod 644 {} +
 
+agent_release_dir="$repo_root/runtime/releases/agent/v$release_version"
+mkdir -p "$agent_release_dir"
+echo "[deploy] building native agent release v$release_version"
+for agent_arch in amd64 arm64; do
+  agent_binary="$agent_release_dir/monitc-agent-linux-$agent_arch"
+  docker run --rm \
+    -e "CGO_ENABLED=0" \
+    -e "GOOS=linux" \
+    -e "GOARCH=$agent_arch" \
+    -e "MONITC_BUILD_VERSION=$release_version" \
+    -v "$repo_root:/workspace" \
+    -w /workspace/agent \
+    golang:1.25.12-alpine \
+    sh -ec 'go build -trimpath -ldflags "-s -w -X main.version=$MONITC_BUILD_VERSION" -o "/workspace/runtime/releases/agent/v$MONITC_BUILD_VERSION/monitc-agent-linux-$GOARCH" ./cmd/monitc-agent'
+  chmod 755 "$agent_binary"
+  (
+    cd "$agent_release_dir"
+    sha256sum "${agent_binary##*/}" > "${agent_binary##*/}.sha256"
+  )
+done
+install -m 0644 "$repo_root/agent/packaging/systemd/monitc-agent.service" \
+  "$agent_release_dir/monitc-agent.service"
+printf 'v%s\n' "$release_version" > "$repo_root/runtime/releases/agent/latest.txt"
+chown -R 10001:10001 "$repo_root/runtime/releases/agent"
+
 echo "[deploy] building immutable images for $revision"
 docker build --pull -f infra/docker/api.Dockerfile -t "$api_image" .
 docker build --pull -f infra/docker/web.Dockerfile -t "$web_image" .
 docker build --pull -f infra/docker/admin.Dockerfile -t "$admin_image" .
+docker build --pull -f infra/docker/agent-gateway.Dockerfile \
+  --build-arg "VERSION=$release_version" -t "$agent_gateway_image" .
 
 container_runtime="$("$kubectl_bin" get nodes -o jsonpath='{.items[0].status.nodeInfo.containerRuntimeVersion}')"
 case "$container_runtime" in
@@ -57,7 +86,7 @@ case "$container_runtime" in
     ;;
   containerd://*)
     echo "[deploy] importing images into K3s containerd"
-    docker save "$api_image" "$web_image" "$admin_image" | k3s ctr images import -
+    docker save "$api_image" "$web_image" "$admin_image" "$agent_gateway_image" | k3s ctr images import -
     ;;
   *)
     echo "[deploy] unsupported Kubernetes container runtime: $container_runtime" >&2
@@ -102,10 +131,11 @@ fi
 sed "s|monitc/api:local|${api_image}|g" infra/k8s/base/20-api.yaml | "$kubectl_bin" apply -f -
 sed "s|monitc/web:local|${web_image}|g" infra/k8s/base/21-web.yaml | "$kubectl_bin" apply -f -
 sed "s|monitc/admin:local|${admin_image}|g" infra/k8s/base/22-admin.yaml | "$kubectl_bin" apply -f -
+sed "s|monitc/agent-gateway:local|${agent_gateway_image}|g" infra/k8s/base/23-agent-gateway.yaml | "$kubectl_bin" apply -f -
 "$kubectl_bin" apply -f infra/k8s/base/30-network-policies.yaml
 
 echo "[deploy] waiting for the application rollout"
-for deployment in api worker web admin; do
+for deployment in api worker web admin agent-gateway; do
   if ! "$kubectl_bin" -n "$namespace" rollout status "deployment/$deployment" --timeout=360s; then
     echo "[deploy] rollout failed for $deployment" >&2
     "$kubectl_bin" -n "$namespace" describe "deployment/$deployment" >&2 || true

@@ -64,6 +64,40 @@ spec:
           volumeMounts:
             - name: releases
               mountPath: /releases
+        - name: agent-ca-export
+          image: busybox:1.37
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -ec
+            - |
+              for attempt in $(seq 1 180); do
+                if [ -s /pki/ca.crt ]; then
+                  install -m 0444 /pki/ca.crt /public/ca.crt
+                  exit 0
+                fi
+                sleep 1
+              done
+              echo "agent CA was not generated before the startup deadline" >&2
+              exit 1
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: agent-pki
+              mountPath: /pki
+              readOnly: true
+            - name: agent-ca-public
+              mountPath: /public
       containers:
         - name: api
           image: monitc/api:local
@@ -112,6 +146,9 @@ spec:
               mountPath: /var/lib/monitc/releases
             - name: tmp
               mountPath: /tmp
+            - name: agent-ca-public
+              mountPath: /var/run/monitc-agent-ca
+              readOnly: true
       volumes:
         - name: releases
           persistentVolumeClaim:
@@ -119,6 +156,12 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 512Mi
+        - name: agent-pki
+          persistentVolumeClaim:
+            claimName: agent-pki
+        - name: agent-ca-public
+          emptyDir:
+            sizeLimit: 1Mi
 ---
 apiVersion: apps/v1
 kind: Deployment

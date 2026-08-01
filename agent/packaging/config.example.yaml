@@ -1,0 +1,26 @@
+gateway:
+  address: monitc-agent.talhacan.com:443
+  serverName: monitc-agent.talhacan.com
+  caFile: /etc/monitc-agent/gateway-ca.crt
+
+stateDirectory: /var/lib/monitc-agent
+
+telemetry:
+  sampleInterval: 1s
+  batchInterval: 5s
+  inventoryInterval: 15s
+  dockerEnabled: true
+  dockerSocket: /var/run/docker.sock
+  kubernetesEnabled: true
+  kubernetesCommand: kubectl
+  kubeconfig: ""
+  ebpfEnabled: true
+  maxSpoolBytes: 268435456
+
+# Remote commands, files and self-update stay deny-by-default. Monitc uses the
+# existing SSH fallback for terminal/SFTP in the first hybrid release.
+security:
+  allowCommandExecution: false
+  allowFileRead: false
+  allowFileWrite: false
+  allowSelfUpdate: false

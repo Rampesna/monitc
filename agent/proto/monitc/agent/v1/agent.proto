@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package monitc.agent.v1;
+
+option go_package = "github.com/Rampesna/monitc/agent/gen/monitc/agent/v1;agentv1";
+
+service AgentGatewayService {
+  // Pair is the only RPC that does not require a client certificate. The
+  // one-time token is consumed atomically when the CSR is signed.
+  rpc Pair(PairRequest) returns (PairResponse);
+  rpc RotateCertificate(RotateCertificateRequest) returns (RotateCertificateResponse);
+  rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
+}
+
+enum Capability {
+  CAPABILITY_UNSPECIFIED = 0;
+  CAPABILITY_HOST_METRICS = 1;
+  CAPABILITY_DOCKER_READ = 2;
+  CAPABILITY_KUBERNETES_READ = 3;
+  CAPABILITY_EBPF = 4;
+  CAPABILITY_COMMAND_EXEC = 5;
+  CAPABILITY_FILE_READ = 6;
+  CAPABILITY_FILE_WRITE = 7;
+  CAPABILITY_SELF_UPDATE = 8;
+}
+
+message PairRequest {
+  string pairing_token = 1;
+  bytes certificate_request_pem = 2;
+  string instance_id = 3;
+  string hostname = 4;
+  string operating_system = 5;
+  string architecture = 6;
+  string kernel_version = 7;
+  string agent_version = 8;
+  repeated Capability capabilities = 9;
+}
+
+message RotateCertificateRequest {
+  bytes certificate_request_pem = 1;
+  string agent_version = 2;
+  repeated Capability capabilities = 3;
+}
+
+message CertificateBundle {
+  string agent_id = 1;
+  string server_id = 2;
+  bytes client_certificate_pem = 3;
+  bytes ca_certificate_pem = 4;
+  int64 certificate_expires_at_unix = 5;
+}
+
+message PairResponse {
+  CertificateBundle certificate_bundle = 1;
+  uint32 sample_interval_millis = 2;
+  uint32 batch_interval_millis = 3;
+  uint32 heartbeat_interval_seconds = 4;
+}
+
+message RotateCertificateResponse {
+  CertificateBundle certificate_bundle = 1;
+}
+
+message AgentHello {
+  string agent_id = 1;
+  string instance_id = 2;
+  string hostname = 3;
+  string operating_system = 4;
+  string architecture = 5;
+  string kernel_version = 6;
+  string agent_version = 7;
+  repeated Capability capabilities = 8;
+  bool ebpf_active = 9;
+  string boot_id = 10;
+  uint64 last_acked_sequence = 11;
+}
+
+message DiskMetric {
+  string device = 1;
+  string mountpoint = 2;
+  string filesystem = 3;
+  uint64 total_bytes = 4;
+  uint64 used_bytes = 5;
+  uint64 available_bytes = 6;
+  double used_percent = 7;
+}
+
+message NetworkMetric {
+  string interface = 1;
+  uint64 receive_bytes_total = 2;
+  uint64 transmit_bytes_total = 3;
+  uint64 receive_packets_total = 4;
+  uint64 transmit_packets_total = 5;
+  uint64 receive_errors_total = 6;
+  uint64 transmit_errors_total = 7;
+  uint64 receive_drops_total = 8;
+  uint64 transmit_drops_total = 9;
+}
+
+message EbpfAggregate {
+  bool active = 1;
+  uint64 window_start_monotonic_nanos = 2;
+  uint64 window_end_monotonic_nanos = 3;
+  uint64 scheduler_switches = 4;
+  uint64 tcp_retransmits = 5;
+  uint64 last_event_monotonic_nanos = 6;
+  string unavailable_reason = 7;
+}
+
+message SystemMetricSample {
+  uint64 sequence = 1;
+  int64 sampled_at_unix_nanos = 2;
+  uint64 monotonic_nanos = 3;
+  uint64 sample_interval_nanos = 4;
+  uint64 collection_duration_nanos = 5;
+  double cpu_percent = 6;
+  double load_average_1 = 7;
+  double load_average_5 = 8;
+  double load_average_15 = 9;
+  uint64 memory_total_bytes = 10;
+  uint64 memory_used_bytes = 11;
+  uint64 memory_available_bytes = 12;
+  double memory_used_percent = 13;
+  uint64 uptime_seconds = 14;
+  repeated DiskMetric disks = 15;
+  repeated NetworkMetric networks = 16;
+  EbpfAggregate ebpf = 17;
+}
+
+message KubernetesPodMetric {
+  string namespace = 1;
+  string name = 2;
+  string node = 3;
+  string phase = 4;
+  string ready = 5;
+  uint32 restarts = 6;
+  double cpu_usage_millicores = 7;
+  double cpu_request_millicores = 8;
+  double cpu_limit_millicores = 9;
+  uint64 memory_usage_bytes = 10;
+  uint64 memory_request_bytes = 11;
+  uint64 memory_limit_bytes = 12;
+  uint64 network_receive_bytes_total = 13;
+  uint64 network_transmit_bytes_total = 14;
+}
+
+message DockerContainerMetric {
+  string id = 1;
+  string name = 2;
+  string image = 3;
+  string state = 4;
+  string status = 5;
+  double cpu_percent = 6;
+  uint64 memory_usage_bytes = 7;
+  uint64 memory_limit_bytes = 8;
+  uint64 network_receive_bytes_total = 9;
+  uint64 network_transmit_bytes_total = 10;
+}
+
+message MetricBatch {
+  string agent_id = 1;
+  string boot_id = 2;
+  repeated SystemMetricSample samples = 3;
+  repeated KubernetesPodMetric pods = 4;
+  repeated DockerContainerMetric containers = 5;
+  int64 inventory_sampled_at_unix_nanos = 6;
+}
+
+message Heartbeat {
+  string agent_id = 1;
+  int64 sent_at_unix_nanos = 2;
+  uint64 monotonic_nanos = 3;
+  uint64 spool_bytes = 4;
+  uint32 spool_batches = 5;
+}
+
+message CommandResult {
+  string command_id = 1;
+  int32 exit_code = 2;
+  bytes standard_output = 3;
+  bytes standard_error = 4;
+  string error_code = 5;
+  int64 started_at_unix_nanos = 6;
+  int64 completed_at_unix_nanos = 7;
+  bool truncated = 8;
+}
+
+message ConnectRequest {
+  oneof payload {
+    AgentHello hello = 1;
+    MetricBatch metric_batch = 2;
+    Heartbeat heartbeat = 3;
+    CommandResult command_result = 4;
+  }
+}
+
+message AgentConfiguration {
+  uint32 sample_interval_millis = 1;
+  uint32 batch_interval_millis = 2;
+  uint32 heartbeat_interval_seconds = 3;
+  repeated Capability enabled_capabilities = 4;
+  uint64 max_spool_bytes = 5;
+}
+
+message Welcome {
+  string connection_id = 1;
+  string server_id = 2;
+  AgentConfiguration configuration = 3;
+  int64 server_time_unix_nanos = 4;
+}
+
+message BatchAcknowledgement {
+  uint64 through_sequence = 1;
+  string boot_id = 2;
+}
+
+message CommandRequest {
+  string command_id = 1;
+  repeated string argv = 2;
+  string working_directory = 3;
+  uint32 timeout_seconds = 4;
+  uint32 max_output_bytes = 5;
+  Capability required_capability = 6;
+}
+
+message UpdateDirective {
+  string version = 1;
+  string download_url = 2;
+  string sha256 = 3;
+  bytes ed25519_signature = 4;
+  bool required = 5;
+}
+
+message ConnectResponse {
+  oneof payload {
+    Welcome welcome = 1;
+    BatchAcknowledgement acknowledgement = 2;
+    AgentConfiguration configuration = 3;
+    CommandRequest command = 4;
+    UpdateDirective update = 5;
+  }
+}

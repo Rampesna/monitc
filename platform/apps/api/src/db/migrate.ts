@@ -218,6 +218,135 @@ const migrations: Migration[] = [
       );
       CREATE INDEX IF NOT EXISTS incident_knowledge_workspace_idx ON incident_knowledge (workspace_id, created_at DESC);
     `
+  },
+  {
+    id: 2,
+    name: 'native-agent-foundation',
+    sql: `
+      ALTER TABLE server_connections ALTER COLUMN secret_ciphertext DROP NOT NULL;
+      ALTER TABLE server_connections ALTER COLUMN secret_key_id DROP NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS agent_pairing_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        server_id UUID NOT NULL REFERENCES server_connections(id) ON DELETE CASCADE,
+        token_hash BYTEA NOT NULL UNIQUE,
+        token_hint TEXT NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        used_at TIMESTAMPTZ,
+        revoked_at TIMESTAMPTZ,
+        created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS agent_pairing_tokens_server_idx
+        ON agent_pairing_tokens (server_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS agent_pairing_tokens_expiry_idx
+        ON agent_pairing_tokens (expires_at) WHERE used_at IS NULL AND revoked_at IS NULL;
+
+      CREATE TABLE IF NOT EXISTS agent_identities (
+        id UUID PRIMARY KEY,
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        server_id UUID NOT NULL UNIQUE REFERENCES server_connections(id) ON DELETE CASCADE,
+        instance_id UUID NOT NULL UNIQUE,
+        certificate_serial TEXT NOT NULL,
+        certificate_expires_at TIMESTAMPTZ NOT NULL,
+        agent_version TEXT NOT NULL DEFAULT '',
+        operating_system TEXT NOT NULL DEFAULT 'linux',
+        architecture TEXT NOT NULL DEFAULT '',
+        kernel_version TEXT NOT NULL DEFAULT '',
+        capabilities JSONB NOT NULL DEFAULT '[]'::jsonb,
+        enabled_capabilities JSONB NOT NULL DEFAULT '["CAPABILITY_HOST_METRICS"]'::jsonb,
+        ebpf_active BOOLEAN NOT NULL DEFAULT false,
+        boot_id TEXT,
+        last_acknowledged_sequence BIGINT NOT NULL DEFAULT 0,
+        last_seen_at TIMESTAMPTZ,
+        last_heartbeat_at TIMESTAMPTZ,
+        spool_bytes BIGINT NOT NULL DEFAULT 0,
+        spool_batches INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'paired' CHECK (status IN ('paired', 'connected', 'degraded', 'offline', 'revoked')),
+        revoked_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS agent_identities_workspace_idx ON agent_identities (workspace_id, status);
+      CREATE INDEX IF NOT EXISTS agent_identities_seen_idx ON agent_identities (last_seen_at DESC);
+
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS sample_source TEXT NOT NULL DEFAULT 'ssh';
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS agent_sequence BIGINT;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS boot_id TEXT;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS monotonic_nanos NUMERIC(20, 0);
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS sample_interval_nanos BIGINT;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS collection_duration_nanos BIGINT;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS load_average_1 DOUBLE PRECISION NOT NULL DEFAULT 0;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS load_average_5 DOUBLE PRECISION NOT NULL DEFAULT 0;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS load_average_15 DOUBLE PRECISION NOT NULL DEFAULT 0;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS ebpf_active BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS scheduler_switches BIGINT NOT NULL DEFAULT 0;
+      ALTER TABLE system_metric_samples ADD COLUMN IF NOT EXISTS tcp_retransmits BIGINT NOT NULL DEFAULT 0;
+      CREATE UNIQUE INDEX IF NOT EXISTS metric_samples_agent_sequence_unique
+        ON system_metric_samples (server_id, boot_id, agent_sequence)
+        WHERE sample_source = 'agent' AND boot_id IS NOT NULL AND agent_sequence IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS system_metric_rollups_1m (
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        server_id UUID NOT NULL REFERENCES server_connections(id) ON DELETE CASCADE,
+        bucket_at TIMESTAMPTZ NOT NULL,
+        sample_count INTEGER NOT NULL,
+        cpu_average DOUBLE PRECISION NOT NULL,
+        cpu_minimum DOUBLE PRECISION NOT NULL,
+        cpu_maximum DOUBLE PRECISION NOT NULL,
+        memory_average DOUBLE PRECISION NOT NULL,
+        memory_minimum DOUBLE PRECISION NOT NULL,
+        memory_maximum DOUBLE PRECISION NOT NULL,
+        disk_average DOUBLE PRECISION NOT NULL,
+        network_rx_rate_average DOUBLE PRECISION NOT NULL,
+        network_tx_rate_average DOUBLE PRECISION NOT NULL,
+        scheduler_switches_total BIGINT NOT NULL DEFAULT 0,
+        tcp_retransmits_total BIGINT NOT NULL DEFAULT 0,
+        PRIMARY KEY (workspace_id, server_id, bucket_at)
+      );
+      CREATE INDEX IF NOT EXISTS metric_rollups_lookup_idx
+        ON system_metric_rollups_1m (workspace_id, server_id, bucket_at DESC);
+
+      ALTER TABLE kubernetes_pod_samples ADD COLUMN IF NOT EXISTS sample_source TEXT NOT NULL DEFAULT 'ssh';
+      ALTER TABLE kubernetes_pod_samples ADD COLUMN IF NOT EXISTS agent_sequence BIGINT;
+      ALTER TABLE kubernetes_pod_samples ADD COLUMN IF NOT EXISTS boot_id TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS pod_samples_agent_sequence_unique
+        ON kubernetes_pod_samples (server_id, boot_id, agent_sequence, namespace, pod_name)
+        WHERE sample_source = 'agent' AND boot_id IS NOT NULL AND agent_sequence IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS docker_container_samples (
+        id BIGSERIAL PRIMARY KEY,
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        server_id UUID NOT NULL REFERENCES server_connections(id) ON DELETE CASCADE,
+        container_id TEXT NOT NULL,
+        container_name TEXT NOT NULL,
+        image TEXT NOT NULL,
+        state TEXT NOT NULL,
+        status TEXT NOT NULL,
+        cpu_percent DOUBLE PRECISION NOT NULL DEFAULT 0,
+        memory_usage_bytes BIGINT NOT NULL DEFAULT 0,
+        memory_limit_bytes BIGINT NOT NULL DEFAULT 0,
+        network_rx_total BIGINT NOT NULL DEFAULT 0,
+        network_tx_total BIGINT NOT NULL DEFAULT 0,
+        network_rx_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+        network_tx_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
+        agent_sequence BIGINT NOT NULL,
+        boot_id TEXT NOT NULL,
+        sampled_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS docker_samples_agent_sequence_unique
+        ON docker_container_samples (server_id, boot_id, agent_sequence, container_id);
+      CREATE INDEX IF NOT EXISTS docker_samples_lookup_idx
+        ON docker_container_samples (workspace_id, server_id, container_id, sampled_at DESC);
+    `
+  },
+  {
+    id: 3,
+    name: 'native-agent-connection-lease',
+    sql: `
+      ALTER TABLE agent_identities ADD COLUMN IF NOT EXISTS connection_id UUID;
+    `
   }
 ]
 

@@ -23,3 +23,19 @@ data:
   ALLOW_PRIVATE_TARGETS: "false"
   REDIS_MODE: cluster
   REDIS_NODES: redis-0.redis-headless:6379,redis-1.redis-headless:6379,redis-2.redis-headless:6379
+  AGENT_GATEWAY_PUBLIC_ADDRESS: monitc-agent.talhacan.com:443
+  AGENT_GATEWAY_SERVER_NAME: monitc-agent.talhacan.com
+  AGENT_INSTALL_URL: https://monitc.talhacan.com/install-agent.sh
+  AGENT_CA_CERT_PATH: /var/run/monitc-agent-ca/ca.crt
+  MONITC_AGENT_GATEWAY_LISTEN: :9443
+  MONITC_AGENT_GATEWAY_STATE_DIR: /var/lib/monitc/agent-pki
+  MONITC_AGENT_CA_CERT: /var/lib/monitc/agent-pki/ca.crt
+  MONITC_AGENT_CA_KEY: /var/lib/monitc/agent-pki/ca.key
+  MONITC_AGENT_SERVER_CERT: /var/lib/monitc/agent-pki/server.crt
+  MONITC_AGENT_SERVER_KEY: /var/lib/monitc/agent-pki/server.key
+  MONITC_AGENT_SERVER_NAMES: monitc-agent.talhacan.com
+  MONITC_AGENT_TRUST_DOMAIN: monitc.talhacan.com
+  MONITC_AGENT_CERT_TTL: 168h
+  MONITC_AGENT_SAMPLE_INTERVAL: 1s
+  MONITC_AGENT_BATCH_INTERVAL: 5s
+  MONITC_AGENT_HEARTBEAT_INTERVAL: 15s

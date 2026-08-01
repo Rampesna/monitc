@@ -247,20 +247,88 @@ async function cleanRetention(): Promise<void> {
     USING subscriptions subscription, plans plan
     WHERE subscription.workspace_id = sample.workspace_id
       AND plan.code = subscription.plan_code
-      AND sample.sampled_at < now() - (
-        COALESCE((plan.entitlements->>'retentionDays')::int, 1)::text || ' days'
-      )::interval
+      AND (
+        (sample.sample_source = 'agent' AND sample.sampled_at < now() - interval '24 hours')
+        OR
+        (sample.sample_source <> 'agent' AND sample.sampled_at < now() - (
+          COALESCE((plan.entitlements->>'retentionDays')::int, 1)::text || ' days'
+        )::interval)
+      )
   `)
   await db.query(`
     DELETE FROM kubernetes_pod_samples sample
     USING subscriptions subscription, plans plan
     WHERE subscription.workspace_id = sample.workspace_id
       AND plan.code = subscription.plan_code
-      AND sample.sampled_at < now() - (
+      AND (
+        (sample.sample_source = 'agent' AND sample.sampled_at < now() - interval '24 hours')
+        OR
+        (sample.sample_source <> 'agent' AND sample.sampled_at < now() - (
+          COALESCE((plan.entitlements->>'retentionDays')::int, 1)::text || ' days'
+        )::interval)
+      )
+  `)
+  await db.query(`
+    DELETE FROM system_metric_rollups_1m rollup
+    USING subscriptions subscription, plans plan
+    WHERE subscription.workspace_id = rollup.workspace_id
+      AND plan.code = subscription.plan_code
+      AND rollup.bucket_at < now() - (
         COALESCE((plan.entitlements->>'retentionDays')::int, 1)::text || ' days'
       )::interval
   `)
+  await db.query(`DELETE FROM docker_container_samples WHERE sampled_at < now() - interval '24 hours'`)
+  await db.query(`DELETE FROM agent_pairing_tokens WHERE expires_at < now() - interval '7 days'`)
+  await db.query(`
+    UPDATE agent_identities SET status = 'offline', updated_at = now()
+    WHERE status = 'connected' AND last_seen_at < now() - interval '90 seconds'
+  `)
+  await db.query(`
+    UPDATE server_connections server SET status = 'offline', updated_at = now()
+    FROM agent_identities agent
+    WHERE agent.server_id = server.id AND agent.status = 'offline' AND server.status = 'connected'
+  `)
   await db.query('DELETE FROM refresh_sessions WHERE expires_at < now() - interval \'7 days\'')
+}
+
+async function evaluateAgentAlerts(): Promise<void> {
+  const result = await db.query<{
+    workspace_id: string
+    server_id: string
+    sampled_at: Date
+    cpu_percent: number
+    memory_percent: number
+    disk_percent: number
+    network_rx_rate: number
+    network_tx_rate: number
+    sample_interval_nanos: number | null
+  }>(`
+    SELECT DISTINCT ON (sample.server_id)
+      sample.workspace_id, sample.server_id, sample.sampled_at,
+      sample.cpu_percent, sample.memory_percent, sample.disk_percent,
+      sample.network_rx_rate, sample.network_tx_rate, sample.sample_interval_nanos
+    FROM system_metric_samples sample
+    JOIN server_connections server ON server.id = sample.server_id
+    WHERE server.connection_mode = 'agent'
+      AND sample.sample_source = 'agent'
+      AND sample.sampled_at >= now() - interval '2 minutes'
+    ORDER BY sample.server_id, sample.sampled_at DESC
+  `)
+  await Promise.all(result.rows.map((sample) => evaluateSystemAlerts({
+    workspaceId: sample.workspace_id,
+    serverId: sample.server_id,
+    sampledAt: sample.sampled_at,
+    minimumPollSeconds: Math.max(0.25, Number(sample.sample_interval_nanos || 1_000_000_000) / 1_000_000_000),
+    values: {
+      cpu: sample.cpu_percent,
+      memory: sample.memory_percent,
+      disk: sample.disk_percent,
+      network_rx: sample.network_rx_rate,
+      network_tx: sample.network_tx_rate
+    }
+  }).catch((error) => {
+    console.warn(`[collector] agent alert evaluation failed for ${sample.server_id}`, error)
+  })))
 }
 
 let cleanupCounter = 0
@@ -271,6 +339,7 @@ export async function runCollectionCycle(): Promise<void> {
   for (let index = 0; index < work.length; index += concurrency) {
     await Promise.all(work.slice(index, index + concurrency).map(collectOne))
   }
+  await evaluateAgentAlerts()
   cleanupCounter += 1
   if (cleanupCounter >= Math.max(1, Math.round(3600 / config.WORKER_POLL_SECONDS))) {
     cleanupCounter = 0
