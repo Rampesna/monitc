@@ -12,9 +12,14 @@ web_image="monitc/web:${revision}"
 admin_image="monitc/admin:${revision}"
 agent_gateway_image="monitc/agent-gateway:${revision}"
 env_file="${MONITC_ENV_FILE:-$repo_root/.env.production}"
-release_version="${MONITC_RELEASE_VERSION:-$(node -p "require('./package.json').version")}"
+release_version="${MONITC_RELEASE_VERSION:-$(awk -F'"' '/"version"[[:space:]]*:/ { print $4; exit }' package.json)}"
 
-required=(docker k3s node sha256sum "$kubectl_bin")
+if [ -z "$release_version" ]; then
+  echo "[deploy] could not read the release version from package.json" >&2
+  exit 1
+fi
+
+required=(docker k3s sha256sum "$kubectl_bin")
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "[deploy] missing required command: $command_name" >&2
