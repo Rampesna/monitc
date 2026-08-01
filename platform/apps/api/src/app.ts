@@ -72,8 +72,17 @@ export async function buildApp(): Promise<FastifyInstance> {
     keyGenerator: (request) => request.ip
   })
 
-  app.get('/health/live', async () => ({ status: 'ok', service: 'monitc-api', version: '1.5.0' }))
-  app.get('/health/ready', async (_request, reply) => {
+  const healthRouteOptions = {
+    config: { rateLimit: false },
+    logLevel: 'silent' as const
+  }
+
+  app.get('/health/live', healthRouteOptions, async () => ({
+    status: 'ok',
+    service: 'monitc-api',
+    version: '1.5.0'
+  }))
+  app.get('/health/ready', healthRouteOptions, async (_request, reply) => {
     try {
       await Promise.all([db.query('SELECT 1'), redis.ping()])
       return { status: 'ready' }
