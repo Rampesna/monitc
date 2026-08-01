@@ -28,6 +28,25 @@ jobs:
             website/package-lock.json
             platform/package-lock.json
 
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.12'
+          cache-dependency-path: agent/go.sum
+
+      - name: Validate native agent protocol and runtime
+        working-directory: agent
+        run: |
+          go install github.com/bufbuild/buf/cmd/buf@v1.72.0
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          buf lint
+          buf generate
+          git diff --exit-code -- gen
+          go vet ./...
+          go test -race ./...
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build ./...
+          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build ./...
+
       - name: Install dependencies
         run: npm ci
 

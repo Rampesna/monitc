@@ -112,7 +112,7 @@ async function releaseMetadata(): Promise<ReleaseMetadata> {
     return JSON.parse(await readFile(path, 'utf8')) as ReleaseMetadata
   } catch {
     return {
-      version: '1.4.1',
+      version: '1.5.0',
       summary: 'monitc cloud and self-hosted platform',
       publishedAt: new Date(0).toISOString(),
       downloadUrl: 'https://github.com/Rampesna/monitc/releases/latest'

@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: agent-gateway
+  namespace: monitc
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-gateway
+  namespace: monitc
+  labels:
+    app.kubernetes.io/name: agent-gateway
+    app.kubernetes.io/part-of: monitc
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-gateway
+      app.kubernetes.io/part-of: monitc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent-gateway
+        app.kubernetes.io/part-of: monitc
+        app.kubernetes.io/component: ingestion
+    spec:
+      serviceAccountName: agent-gateway
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 20
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: pki-permissions
+          image: busybox:1.37
+          command: [sh, -ec, "mkdir -p /pki && chown -R 10001:10001 /pki && chmod 700 /pki"]
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+              add: [CHOWN, FOWNER]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 8Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+          volumeMounts:
+            - name: agent-pki
+              mountPath: /pki
+      containers:
+        - name: agent-gateway
+          image: monitc/agent-gateway:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: grpc-mtls
+              containerPort: 9443
+          envFrom:
+            - configMapRef:
+                name: monitc-config
+            - secretRef:
+                name: monitc-secrets
+          readinessProbe:
+            tcpSocket:
+              port: grpc-mtls
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: grpc-mtls
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: agent-pki
+              mountPath: /var/lib/monitc/agent-pki
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: agent-pki
+          persistentVolumeClaim:
+            claimName: agent-pki
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-gateway
+  namespace: monitc
+  labels:
+    app.kubernetes.io/name: agent-gateway
+    app.kubernetes.io/part-of: monitc
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: agent-gateway
+    app.kubernetes.io/part-of: monitc
+  ports:
+    - name: grpc-mtls
+      port: 9443
+      targetPort: grpc-mtls
+      nodePort: 9130

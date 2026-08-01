@@ -3,6 +3,7 @@ WORKDIR /build/website
 COPY website/package.json website/package-lock.json ./
 RUN npm ci
 COPY website/ ./
+COPY agent/packaging/install.sh public/install-agent.sh
 RUN npm run build
 
 FROM node:22.22-alpine AS application

@@ -16,7 +16,10 @@ data or remote server access. Contact the maintainer privately through the addre
 | Contact messages and operator notes | AES-256-GCM ciphertext |
 | Passwords | Argon2id hash plus optional external pepper |
 | Refresh tokens | SHA-256 digest only |
+| Native-agent pairing tokens | SHA-256 digest only; one-time and expiring |
 | Access tokens | Not persisted by the browser; kept in memory |
+| Native-agent private key | Generated and retained only on the monitored server |
+| Native-agent certificate | Short-lived public identity material; renewable over mTLS |
 | Metrics and Kubernetes resource samples | Plain operational measurements scoped by workspace |
 | IP and user-agent metadata | Context-separated keyed HMAC digest |
 
@@ -38,6 +41,29 @@ unattended server-side SSH monitoring without a customer-side agent or an online
 For stronger isolation at scale, move vault decryption to a dedicated service backed by a KMS/HSM,
 use envelope keys per workspace, and deploy customer-side agents for environments that require
 customer-controlled keys.
+
+## Native-agent trust boundary
+
+Agent-only enrollment removes the need to upload SSH credentials. The API creates a cryptographically
+random, single-use pairing token and stores only its SHA-256 digest. The agent exchanges that secret
+once over TLS, generates its ECDSA P-256 key locally and receives a seven-day client certificate with
+a URI identity bound to the workspace/server record. Subsequent traffic requires TLS 1.3 mutual
+authentication; the gateway compares the certificate identity, stream hello and database identity
+before accepting telemetry.
+
+The connection is outbound from the monitored server. Batches carry a boot identifier and monotonic
+sequence; PostgreSQL uniqueness constraints and server-side acknowledgement make retry safe without
+duplicating samples. The gateway validates sample ages, dimensions, finite numeric ranges,
+capabilities and payload counts. Pairing attempts are rate-limited before database work.
+
+The gateway is the only long-running workload that mounts the private PKI volume. A constrained
+init/export step copies only the public CA certificate into a separate volume for the bootstrap API;
+the API process cannot read the CA signing key.
+
+Agent command and file capabilities are denied by default. This release intentionally routes terminal
+and SFTP through the existing SSH provider when fallback credentials are configured. Enabling a future
+agent capability requires both a signed server policy and an explicit local allow-list; registration
+alone must never grant remote shell access.
 
 ## Authentication and authorization
 
@@ -69,14 +95,17 @@ Always:
 - proxy the API service only, never PostgreSQL or Redis;
 - enable WebSocket upgrades only on the API host;
 - restrict ports `9127`–`9129` to loopback/firewall or the reverse proxy;
+- expose agent port `9130` only through raw TCP/TLS passthrough; never terminate it at an
+  HTTP-only proxy or expose an unencrypted backend listener;
 - pin the SSH host key in automated deployment;
 - keep Kubernetes Secret encryption at rest enabled.
 
 ## Secrets and key lifecycle
 
 `.env.production` and self-hosted `.env` contain the JWT private key, vault key pair, PII keys,
-password pepper and database/cache passwords. They are mode `0600`, excluded from Git and must be
-backed up separately from the database.
+password pepper and database/cache passwords. The agent PKI volume additionally contains the
+gateway CA private key. They are excluded from Git and must be backed up separately from the
+database with tightly restricted access.
 
 Losing `VAULT_PRIVATE_KEY_B64` makes SSH records unrecoverable. Losing
 `PII_ENCRYPTION_KEY_B64` makes encrypted personal fields unrecoverable. Exposing either key
@@ -85,6 +114,10 @@ together with the database defeats its at-rest protection.
 Current key IDs are stored with SSH ciphertext and JWT headers to support a future staged rotation.
 Before rotating a vault or PII key, implement and test re-encryption with both old and new keys
 available; never overwrite the only working key.
+
+Losing the agent CA key prevents certificate rotation and new pairing but does not reveal agent
+private keys. Restore the CA from its encrypted backup or deliberately create a new CA and re-pair
+every agent. Never copy an agent's local identity directory between hosts.
 
 ## Storage, retention and backups
 
@@ -95,10 +128,13 @@ provider or physical node and perform scheduled restore drills.
 
 Metric retention is enforced per active plan. Refresh records are cleaned after expiry. Audit
 records currently require an explicit operational retention policy before production scale.
+High-resolution native samples are retained for 24 hours and compacted into one-minute rollups;
+plan retention applies to those rollups. The system does not create one database row per kernel
+event or per microsecond.
 
 ## Runtime hardening
 
-- API, worker and frontend containers run as non-root.
+- API, worker, agent gateway and frontend containers run as non-root.
 - Application root filesystems are read-only.
 - Linux capabilities are dropped and privilege escalation is disabled.
 - K3s workloads use `RuntimeDefault` seccomp.
@@ -106,10 +142,12 @@ records currently require an explicit operational retention policy before produc
 - API logs redact authorization, cookies, passwords and sealed credentials.
 - Request bodies, terminal messages and editor/upload operations have size limits.
 - Production errors return a request ID rather than raw internal exceptions.
+- The Linux agent uses a hardened systemd unit, bounded local spool storage and an optional eBPF
+  collector that degrades safely when kernel features or capabilities are unavailable.
 
 ## Dependency status
 
-Production dependency audits are required to have zero known vulnerabilities. As of 2026-07-29,
+Production dependency audits are required to have zero known vulnerabilities. As of 2026-08-01,
 the desktop, platform and landing-page production dependency trees all pass `npm audit
 --omit=dev` with zero findings.
 
@@ -119,7 +157,8 @@ risk. CI repeats the production audits so a newly disclosed issue cannot be sile
 
 ## Production checklist
 
-- [ ] HTTPS and HSTS are active on all three domains.
+- [ ] HTTPS and HSTS are active on all three browser domains.
+- [ ] `monitc-agent` raw TLS routing reaches port `9130`; pairing and mTLS reconnection are tested.
 - [ ] API WebSocket proxying works and all non-API origins are rejected.
 - [ ] Kubernetes Secret encryption at rest reports `Enabled`.
 - [ ] `.env.production` is `0600` and has an encrypted off-host backup.
@@ -129,3 +168,4 @@ risk. CI repeats the production audits so a newly disclosed issue cannot be sile
 - [ ] SSH host fingerprints are learned once and pinned on subsequent connections.
 - [ ] Plan entitlements and workspace roles are tested server-side.
 - [ ] Dependency audit exceptions have been reviewed.
+- [ ] The agent CA and `.env.production` have separate encrypted off-host backups.

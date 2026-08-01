@@ -58,11 +58,17 @@ services:
       REDIS_MODE: standalone
       REDIS_NODES: redis:6379
       RELEASES_PATH: /var/lib/monitc/releases
+      AGENT_GATEWAY_PUBLIC_ADDRESS: ${AGENT_GATEWAY_PUBLIC_ADDRESS:-monitc-agent.example.com:443}
+      AGENT_GATEWAY_SERVER_NAME: ${AGENT_GATEWAY_SERVER_NAME:-monitc-agent.example.com}
+      AGENT_CA_CERT_PATH: /var/run/monitc-agent-ca/ca.crt
+      AGENT_INSTALL_URL: ${AGENT_INSTALL_URL:-https://monitc.example.com/install-agent.sh}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      agent-ca-export:
+        condition: service_completed_successfully
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/health/ready').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
@@ -72,6 +78,7 @@ services:
       - ${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-9128}:8080
     volumes:
       - releases:/var/lib/monitc/releases
+      - agent-ca-public:/var/run/monitc-agent-ca:ro
     networks: [edge, data]
     read_only: true
     tmpfs:
@@ -94,6 +101,85 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
+    security_opt: [no-new-privileges:true]
+
+  agent-pki-init:
+    image: busybox:1.37
+    command: [sh, -ec, "mkdir -p /pki /public && chown -R 10001:10001 /pki /public && chmod 700 /pki /public"]
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - agent-pki:/pki
+      - agent-ca-public:/public
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER]
+    security_opt: [no-new-privileges:true]
+
+  agent-gateway:
+    image: monitc-agent-gateway:local
+    build:
+      context: ../..
+      dockerfile: infra/docker/agent-gateway.Dockerfile
+      args:
+        VERSION: ${MONITC_VERSION:-dev}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MONITC_AGENT_GATEWAY_LISTEN: :9443
+      MONITC_AGENT_GATEWAY_STATE_DIR: /var/lib/monitc/agent-pki
+      MONITC_AGENT_CA_CERT: /var/lib/monitc/agent-pki/ca.crt
+      MONITC_AGENT_CA_KEY: /var/lib/monitc/agent-pki/ca.key
+      MONITC_AGENT_SERVER_CERT: /var/lib/monitc/agent-pki/server.crt
+      MONITC_AGENT_SERVER_KEY: /var/lib/monitc/agent-pki/server.key
+      MONITC_AGENT_SERVER_NAMES: ${AGENT_GATEWAY_SERVER_NAME:-monitc-agent.example.com}
+      MONITC_AGENT_TRUST_DOMAIN: ${MONITC_AGENT_TRUST_DOMAIN:-monitc.example.com}
+      MONITC_AGENT_CERT_TTL: ${MONITC_AGENT_CERT_TTL:-168h}
+      MONITC_AGENT_SAMPLE_INTERVAL: ${MONITC_AGENT_SAMPLE_INTERVAL:-1s}
+      MONITC_AGENT_BATCH_INTERVAL: ${MONITC_AGENT_BATCH_INTERVAL:-5s}
+      MONITC_AGENT_HEARTBEAT_INTERVAL: ${MONITC_AGENT_HEARTBEAT_INTERVAL:-15s}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      agent-pki-init:
+        condition: service_completed_successfully
+    ports:
+      - ${BIND_ADDRESS:-127.0.0.1}:${AGENT_GATEWAY_PORT:-9130}:9443
+    volumes:
+      - agent-pki:/var/lib/monitc/agent-pki
+    networks: [edge, data]
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt: [no-new-privileges:true]
+
+  agent-ca-export:
+    image: busybox:1.37
+    command:
+      - sh
+      - -ec
+      - |
+        for attempt in $$(seq 1 180); do
+          if [ -s /pki/ca.crt ]; then
+            install -m 0444 /pki/ca.crt /public/ca.crt
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "agent CA was not generated before the startup deadline" >&2
+        exit 1
+    user: "10001:10001"
+    restart: "no"
+    depends_on:
+      agent-gateway:
+        condition: service_started
+    volumes:
+      - agent-pki:/pki:ro
+      - agent-ca-public:/public
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
 
   web:
@@ -183,3 +269,5 @@ volumes:
   redis-data:
   releases:
   backups:
+  agent-pki:
+  agent-ca-public:

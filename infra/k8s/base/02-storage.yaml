@@ -16,6 +16,21 @@ spec:
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
+  name: agent-pki
+  namespace: monitc
+  labels:
+    app.kubernetes.io/name: agent-pki
+    app.kubernetes.io/part-of: monitc
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
   name: backups
   namespace: monitc
   labels:

@@ -9,12 +9,14 @@ import {
   HardDrive,
   MemoryStick,
   Network,
+  RadioTower,
   RefreshCw,
   Server,
+  ShieldCheck,
   TerminalSquare
 } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import type { PodResourceMetric, ServerSummary, SystemMetricPoint } from '@monitc/shared'
+import type { AgentTelemetryLatest, DockerContainerMetric, PodResourceMetric, ServerSummary, SystemMetricPoint } from '@monitc/shared'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
 import { bytes, millicores, rate, timeAgo } from '../lib/format'
@@ -29,7 +31,9 @@ export function ServerDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [server, setServer] = useState<ServerSummary | null>(null)
   const [points, setPoints] = useState<SystemMetricPoint[]>([])
+  const [liveSample, setLiveSample] = useState<AgentTelemetryLatest | null>(null)
   const [pods, setPods] = useState<PodResourceMetric[]>([])
+  const [containers, setContainers] = useState<DockerContainerMetric[]>([])
   const initialTab = searchParams.get('tab')
   const [tab, setTabState] = useState<Tab>(
     initialTab === 'kubernetes' || initialTab === 'terminal' || initialTab === 'files'
@@ -54,25 +58,35 @@ export function ServerDetailPage() {
   const load = async () => {
     const servers = await api<{ servers: ServerSummary[] }>('/api/v1/servers')
     setServer(servers.servers.find((item) => item.id === serverId) || null)
-    const [history, podData] = await Promise.all([
+    const [history, podData, containerData, latestData] = await Promise.all([
       api<{ points: SystemMetricPoint[] }>(`/api/v1/metrics/servers/${serverId}/history?hours=6`).catch(() => ({ points: [] })),
-      api<{ pods: PodResourceMetric[] }>(`/api/v1/metrics/servers/${serverId}/pods`).catch(() => ({ pods: [] }))
+      api<{ pods: PodResourceMetric[] }>(`/api/v1/metrics/servers/${serverId}/pods`).catch(() => ({ pods: [] })),
+      api<{ containers: DockerContainerMetric[] }>(`/api/v1/metrics/servers/${serverId}/containers`).catch(() => ({ containers: [] })),
+      api<AgentTelemetryLatest>(`/api/v1/metrics/servers/${serverId}/latest`).catch(() => null)
     ])
     setPoints(history.points)
     setPods(podData.pods)
+    setContainers(containerData.containers)
+    setLiveSample(latestData)
   }
   useEffect(() => {
     load().finally(() => setLoading(false))
-    const timer = window.setInterval(() => void load(), 30_000)
+    const timer = window.setInterval(() => void load(), 5_000)
     return () => window.clearInterval(timer)
   }, [serverId])
+  useEffect(() => {
+    if (server && !server.sshFallbackConfigured && (tab === 'terminal' || tab === 'files')) {
+      setTabState('overview')
+      setSearchParams({}, { replace: true })
+    }
+  }, [server, tab, setSearchParams])
 
   const refresh = async () => {
     setRefreshing(true)
     await api(`/api/v1/servers/${serverId}/test`, { method: 'POST' }).catch(() => undefined)
     await load().finally(() => setRefreshing(false))
   }
-  const latest = points.at(-1)
+  const latest = liveSample || points.at(-1)
   const chart = useMemo(() => points.map((point) => ({
     ...point,
     time: new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -93,12 +107,16 @@ export function ServerDetailPage() {
         <Link className="back-link" to="/servers"><ArrowLeft size={14} /> Servers</Link>
         <div className="server-identity">
           <span className={`server-card-icon ${server.status}`}><Server size={20} /></span>
-          <div><p className="eyebrow">SERVER WORKSPACE</p><h1>{server.name}</h1><span>{server.username}@{server.host}:{server.port} · <i className={server.status} /> {server.status}</span></div>
+          <div><p className="eyebrow">SERVER WORKSPACE</p><h1>{server.name}</h1><span>{server.connectionMode === 'agent' ? `native agent${server.agent?.version ? ` ${server.agent.version}` : ''}` : `${server.username}@${server.host}:${server.port}`} · <i className={server.status} /> {server.status}</span></div>
         </div>
-        <div className="server-heading-actions"><span>Last sample {timeAgo(server.lastSeenAt)}</span><button className="secondary-button" onClick={() => void refresh()}><RefreshCw size={14} className={refreshing ? 'spin' : ''} /> Collect now</button></div>
+        <div className="server-heading-actions"><span>Last sample {timeAgo(server.lastSeenAt)}</span><button className="secondary-button" onClick={() => void refresh()}><RefreshCw size={14} className={refreshing ? 'spin' : ''} /> {server.connectionMode === 'agent' ? 'Refresh view' : 'Collect now'}</button></div>
       </div>
       <div className="tabs">
-        {tabs.map(({ id, label, icon: Icon }) => <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}><Icon size={14} /> {label}{id === 'kubernetes' && <small>{pods.length}</small>}</button>)}
+        {tabs.map(({ id, label, icon: Icon }) => {
+          const needsSSH = id === 'terminal' || id === 'files'
+          const disabled = needsSSH && !server.sshFallbackConfigured
+          return <button key={id} disabled={disabled} title={disabled ? 'Add an encrypted SSH fallback to use this feature.' : undefined} className={tab === id ? 'active' : ''} onClick={() => !disabled && setTab(id)}><Icon size={14} /> {label}{id === 'kubernetes' && <small>{pods.length}</small>}</button>
+        })}
       </div>
 
       {tab === 'overview' && (
@@ -109,8 +127,16 @@ export function ServerDetailPage() {
             <ResourceCard icon={HardDrive} label="Root disk" value={latest?.diskPercent} tone="green" />
             <article className="resource-card network-card"><span className="resource-icon"><Network size={16} /></span><div><p>Network throughput</p><strong>{latest ? rate(latest.networkRxBytesPerSecond) : '—'}</strong><small>↓ incoming</small></div><div><strong>{latest ? rate(latest.networkTxBytesPerSecond) : '—'}</strong><small>↑ outgoing</small></div></article>
           </div>
+          {server.connectionMode === 'agent' && <section className="agent-live-strip">
+            <div className="agent-live-title"><span><RadioTower size={16} /></span><div><strong>Native telemetry stream</strong><small>{server.agent ? `mTLS identity ${server.agent.status}` : 'Waiting for one-time pairing'}</small></div></div>
+            <AgentDatum label="Sampling" value={liveSample?.sampleIntervalNanos ? formatNanos(liveSample.sampleIntervalNanos) : '—'} />
+            <AgentDatum label="Collection" value={liveSample?.collectionDurationNanos ? formatNanos(liveSample.collectionDurationNanos) : '—'} />
+            <AgentDatum label="eBPF" value={liveSample?.ebpfActive ? 'Active' : 'Fallback'} tone={liveSample?.ebpfActive ? 'green' : ''} />
+            <AgentDatum label="Sched / window" value={liveSample ? liveSample.schedulerSwitches.toLocaleString() : '—'} />
+            <AgentDatum label="TCP retransmits" value={liveSample ? liveSample.tcpRetransmits.toLocaleString() : '—'} />
+          </section>}
           <section className="panel detail-chart-panel">
-            <header className="panel-header"><div><h2>Resource history</h2><p>CPU and memory · last 6 hours</p></div><span className="live-pill"><i /> 30s</span></header>
+            <header className="panel-header"><div><h2>Resource history</h2><p>CPU and memory · last 6 hours</p></div><span className="live-pill"><i /> {server.connectionMode === 'agent' ? 'native stream' : '30s'}</span></header>
             <div className="detail-chart">
               {chart.length ? (
                 <ResponsiveContainer width="100%" height="100%">
@@ -128,8 +154,9 @@ export function ServerDetailPage() {
             </div>
           </section>
           <div className="detail-lower-grid">
+            <section className="panel"><header className="panel-header"><div><h2>Docker snapshot</h2><p>Live container resource telemetry</p></div><Link className="text-button" to="/workloads">View fleet</Link></header><div className="pod-summary"><strong>{containers.length}</strong><span>containers discovered</span><div><b>{containers.filter((container) => container.state === 'running').length}</b> running</div><div><b>{containers.reduce((sum, container) => sum + container.cpuPercent, 0).toFixed(1)}%</b> CPU</div></div></section>
             <section className="panel"><header className="panel-header"><div><h2>Kubernetes snapshot</h2><p>Assigned resources and live utilization</p></div><button className="text-button" onClick={() => setTab('kubernetes')}>View pods</button></header><div className="pod-summary"><strong>{pods.length}</strong><span>pods discovered</span><div><b>{pods.filter((pod) => pod.phase === 'Running').length}</b> running</div><div><b>{pods.filter((pod) => pod.restarts > 0).length}</b> restarted</div></div></section>
-            <section className="panel connection-panel"><header className="panel-header"><div><h2>Secure access</h2><p>Open an isolated browser session</p></div></header><div><button onClick={() => setTab('terminal')}><TerminalSquare size={17} /><span><strong>Web terminal</strong><small>One-time session ticket</small></span></button><button onClick={() => setTab('files')}><FileCode2 size={17} /><span><strong>SFTP files</strong><small>Browse, edit and transfer</small></span></button></div></section>
+            {server.sshFallbackConfigured ? <section className="panel connection-panel"><header className="panel-header"><div><h2>Secure access</h2><p>Open an isolated browser session over SSH fallback</p></div></header><div><button onClick={() => setTab('terminal')}><TerminalSquare size={17} /><span><strong>Web terminal</strong><small>One-time session ticket</small></span></button><button onClick={() => setTab('files')}><FileCode2 size={17} /><span><strong>SFTP files</strong><small>Browse, edit and transfer</small></span></button></div></section> : <section className="panel agent-identity-panel"><header className="panel-header"><div><h2>Agent identity</h2><p>Credential-free outbound access</p></div><ShieldCheck size={15} /></header><div>{server.agent ? <><span><strong>{server.agent.operatingSystem} / {server.agent.architecture}</strong><small>Kernel {server.agent.kernelVersion || 'unknown'}</small></span><span><strong>Certificate rotation</strong><small>{new Date(server.agent.certificateExpiresAt).toLocaleString()}</small></span><span><strong>Offline buffer</strong><small>{bytes(server.agent.spoolBytes)} · {server.agent.spoolBatches} batches</small></span></> : <><RadioTower size={20} /><span><strong>Pairing required</strong><small>Open Servers and choose “Pair native agent”.</small></span></>}</div></section>}
           </div>
         </div>
       )}
@@ -139,6 +166,17 @@ export function ServerDetailPage() {
       {tab === 'files' && <SftpBrowser serverId={serverId} />}
     </div>
   )
+}
+
+function AgentDatum({ label, value, tone = '' }: { label: string; value: string; tone?: string }) {
+  return <div className={`agent-live-datum ${tone}`}><span>{label}</span><strong>{value}</strong></div>
+}
+
+function formatNanos(value: number): string {
+  if (value < 1_000) return `${Math.round(value)} ns`
+  if (value < 1_000_000) return `${(value / 1_000).toFixed(value < 10_000 ? 1 : 0)} µs`
+  if (value < 1_000_000_000) return `${(value / 1_000_000).toFixed(1)} ms`
+  return `${(value / 1_000_000_000).toFixed(2)} s`
 }
 
 function ResourceCard({ icon: Icon, label, value, tone }: { icon: typeof Cpu; label: string; value?: number; tone: string }) {

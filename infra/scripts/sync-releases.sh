@@ -6,7 +6,7 @@ kubectl_bin="${KUBECTL_BIN:-kubectl}"
 namespace="${MONITC_NAMESPACE:-monitc}"
 source_dir="${MONITC_RELEASE_SOURCE:-$repo_root/runtime/releases}"
 
-if ! find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print -quit | grep -q .; then
+if ! find "$source_dir" -mindepth 1 -type f -print -quit | grep -q .; then
   echo "[releases] no staged artifacts to synchronize"
   exit 0
 fi
@@ -71,8 +71,8 @@ YAML
 "$kubectl_bin" -n "$namespace" wait --for=condition=Ready "pod/$sync_pod" --timeout=120s >/dev/null
 
 source_fingerprint="$(
-  find "$source_dir" -maxdepth 1 -type f \
-    -printf '%f\0%s\0%T@\0' |
+  find "$source_dir" -type f \
+    -printf '%P\0%s\0%T@\0' |
     sort -z |
     sha256sum |
     awk '{print $1}'
@@ -89,22 +89,33 @@ fi
 
 echo "[releases] synchronizing staged artifacts into the persistent feed"
 while IFS= read -r -d '' source_file; do
-  file_name="${source_file##*/}"
+  relative_path="${source_file#"$source_dir"/}"
   source_hash="$(sha256sum "$source_file" | awk '{print $1}')"
   target_hash="$(
     "$kubectl_bin" -n "$namespace" exec "$sync_pod" -- \
       sh -c 'test ! -f "$1" || sha256sum "$1" | cut -d " " -f 1' \
-      sh "/releases/$file_name"
+      sh "/releases/$relative_path"
   )"
   if [ "$source_hash" = "$target_hash" ]; then
     continue
   fi
 
-  echo "[releases] updating $file_name"
-  tar -C "$source_dir" -cf - -- "$file_name" |
+  echo "[releases] updating $relative_path"
+  "$kubectl_bin" -n "$namespace" exec "$sync_pod" -- \
+    sh -c 'mkdir -p "$(dirname "$1")"' sh "/releases/$relative_path"
+  tar -C "$source_dir" -cf - -- "$relative_path" |
     "$kubectl_bin" -n "$namespace" exec -i "$sync_pod" -- \
       tar -C /releases -xf -
-done < <(find "$source_dir" -mindepth 1 -maxdepth 1 -type f -print0)
+done < <(
+  find "$source_dir" -mindepth 1 -type f \
+    ! -path "$source_dir/agent/latest.txt" \
+    ! -name 'latest*.yml' \
+    ! -name 'release.json' \
+    -print0 | sort -z
+  find "$source_dir" -mindepth 1 -type f \
+    \( -path "$source_dir/agent/latest.txt" -o -name 'latest*.yml' -o -name 'release.json' \) \
+    -print0 | sort -z
+)
 
 "$kubectl_bin" -n "$namespace" exec "$sync_pod" -- \
   sh -c 'printf "%s\n" "$1" > /releases/.source-fingerprint && sync' \

@@ -1,0 +1,43 @@
+[Unit]
+Description=Monitc native telemetry agent
+Documentation=https://monitc.talhacan.com/docs/agent
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/local/bin/monitc-agent --config /etc/monitc-agent/config.yaml
+Environment=MONITC_AGENT_PAIRING_TOKEN_FILE=/etc/monitc-agent/pairing-token
+Restart=always
+RestartSec=3s
+TimeoutStopSec=20s
+StateDirectory=monitc-agent
+StateDirectoryMode=0700
+UMask=0077
+
+# The first hybrid release has no remote command/file capability. These
+# controls limit the long-running process while preserving read access to
+# procfs, the optional Docker socket and an operator-supplied kubeconfig.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=false
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/monitc-agent /etc/monitc-agent
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE
+AmbientCapabilities=CAP_BPF CAP_PERFMON CAP_SYS_RESOURCE
+
+[Install]
+WantedBy=multi-user.target

@@ -22,6 +22,7 @@ import {
   Menu,
   MonitorCog,
   Network,
+  RadioTower,
   RefreshCw,
   Server,
   ShieldCheck,
@@ -36,10 +37,10 @@ const GITHUB_REPO = 'https://github.com/Rampesna/monitc'
 const WEB_APP = '/app/'
 
 const plans = [
-  { name: 'Community', price: '$0', description: 'Local-first infrastructure for personal operators.', features: ['2 servers', '24-hour history', 'Desktop and self-hosted', 'Kubernetes visibility'] },
-  { name: 'Solo', price: '$12', description: 'A focused managed workspace for one operator.', features: ['5 managed servers', '30-day history', 'Web terminal and SFTP', 'Alerts'], highlighted: true },
-  { name: 'Team', price: '$39', description: 'Shared operations with controls and context.', features: ['25 managed servers', '5 seats', '90-day history', 'RBAC and audit log'] },
-  { name: 'Scale', price: 'Custom', description: 'Custom limits, onboarding and guarantees.', features: ['Custom server limits', '365-day history', 'SSO-ready architecture', 'Dedicated onboarding'] }
+  { name: 'Community', price: '$0', description: 'Local-first infrastructure for personal operators.', features: ['2 servers', '5s native telemetry', 'Desktop and self-hosted', 'Kubernetes visibility'] },
+  { name: 'Solo', price: '$12', description: 'A focused managed workspace for one operator.', features: ['5 managed servers', '1s native telemetry', 'Web terminal and SFTP', '30-day history'], highlighted: true },
+  { name: 'Team', price: '$39', description: 'Shared operations with controls and context.', features: ['25 managed servers', '500ms native telemetry', '5 seats', 'RBAC and audit log'] },
+  { name: 'Scale', price: 'Custom', description: 'Custom limits, onboarding and guarantees.', features: ['Custom server limits', '250ms native telemetry', '365-day history', 'Dedicated onboarding'] }
 ]
 
 const features = [
@@ -70,6 +71,13 @@ const features = [
     title: 'Remote files without the friction.',
     text: 'Browse, edit, upload, download, copy and move files over SFTP.',
     className: 'feature-files'
+  },
+  {
+    icon: RadioTower,
+    eyebrow: 'Stream',
+    title: 'Native telemetry, without inbound access.',
+    text: 'A lightweight Go agent streams host, Docker and Kubernetes signals over outbound mTLS, with an encrypted identity and a bounded offline buffer.',
+    className: 'feature-wide feature-agent'
   },
   {
     icon: CloudCog,
@@ -259,6 +267,11 @@ function FeatureCard({ feature }) {
       {feature.className.includes('automate') && (
         <div className="pipeline"><span className="done"><CircleCheck size={14} /> Build</span><i /><span className="done"><CircleCheck size={14} /> Test</span><i /><span className="live"><RefreshCw size={14} /> Deploy</span></div>
       )}
+      {feature.className.includes('agent') && (
+        <div className="agent-stream-visual">
+          <span><i /> Agent</span><b /><span><ShieldCheck size={13} /> mTLS</span><b /><span><Activity size={13} /> Live</span>
+        </div>
+      )}
     </article>
   )
 }
@@ -286,9 +299,9 @@ function Security() {
           <h2>Local when you want it.<br />Managed when you need it.</h2>
           <p>Desktop mode keeps credentials on your device. Self-hosted mode keeps the whole control plane on your Linux server. Managed cloud seals connection data in your browser and stores only ciphertext.</p>
           <div className="security-points">
-            <div><ShieldCheck size={18} /><span><strong>Public-key sealed vault</strong><small>Managed secrets are encrypted before leaving the browser.</small></span></div>
+            <div><ShieldCheck size={18} /><span><strong>Workload identity over mTLS</strong><small>Each agent creates its private key locally and rotates a short-lived certificate.</small></span></div>
             <div><LockKeyhole size={18} /><span><strong>Short-lived, scoped access</strong><small>Rotating sessions, RBAC and one-time terminal tickets.</small></span></div>
-            <div><HardDrive size={18} /><span><strong>Local-first remains intact</strong><small>Desktop users can keep every credential and metric on-device.</small></span></div>
+            <div><HardDrive size={18} /><span><strong>Local-first remains intact</strong><small>SSH stays available for terminal and SFTP, while native telemetry remains credential-free.</small></span></div>
           </div>
         </div>
         <div className="security-visual">
@@ -451,7 +464,7 @@ function Admin() {
 }
 
 export default function App() {
-  const [release, setRelease] = useState({ version: '1.4.1', summary: '', downloadUrl: '', publishedAt: null })
+  const [release, setRelease] = useState({ version: '1.5.0', summary: '', downloadUrl: '', publishedAt: null })
   useEffect(() => {
     fetch('/api/releases/latest').then((response) => response.ok ? response.json() : null).then((data) => data && setRelease(data)).catch(() => {})
   }, [])

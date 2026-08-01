@@ -108,6 +108,38 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: agent-gateway
+  namespace: monitc
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: agent-gateway
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 9443
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: redis-bootstrap-egress
   namespace: monitc
 spec:
@@ -153,7 +185,7 @@ spec:
             matchExpressions:
               - key: app.kubernetes.io/name
                 operator: In
-                values: [api, worker, backup, redis-bootstrap, redis]
+                values: [api, worker, backup, redis-bootstrap, redis, agent-gateway]
       ports:
         - protocol: TCP
           port: 5432

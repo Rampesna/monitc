@@ -30,9 +30,16 @@ operator console.
 
 ## Highlights
 
-- Live CPU, memory, disk, uptime and network telemetry over SSH.
+- Hybrid server access: a lightweight Go agent for outbound, high-resolution telemetry with SSH
+  retained for terminal, SFTP and agentless fallback.
+- TLS 1.3 mutual authentication, one-time pairing and short-lived workload certificates for every
+  native agent.
+- Plan-aware native sampling from 5 seconds down to 250 milliseconds, durable offline buffering
+  and optional eBPF event aggregation.
 - Kubernetes pod allocation and usage: CPU requests/limits/usage, memory requests/limits/usage,
   restart state and per-pod receive/transmit rates.
+- Native Docker workload telemetry: container state, CPU, memory limit/usage and receive/transmit
+  rates in the web workload fleet.
 - Docker and Kubernetes inventory and operations in the desktop client.
 - Browser and desktop SSH terminals.
 - SFTP navigation, editor, upload/download, create, copy, cut, paste, move and recursive delete.
@@ -46,9 +53,11 @@ operator console.
 
 ```mermaid
 flowchart LR
-  D["Desktop app"] --> S["Customer servers"]
+  D["Desktop app"] --> S["Customer servers over SSH"]
   B["Web app /app"] --> A["Fastify API"]
   C["Operator console"] --> A
+  G["Go native agent"] -->|"outbound gRPC + mTLS"| AG["Agent gateway"]
+  AG --> P
   A --> P["PostgreSQL 16 + pgvector"]
   A --> R["Redis Cluster"]
   A --> U["Release storage"]
@@ -62,6 +71,7 @@ The managed installation runs in the isolated `monitc` Kubernetes namespace:
 - two API replicas behind a NodePort service;
 - two web replicas and two admin replicas;
 - one background collector worker;
+- a dedicated native-agent gRPC gateway and private certificate authority volume;
 - PostgreSQL 16 with pgvector;
 - three Redis master pods with persistent AOF storage;
 - daily verified PostgreSQL backups with 14-day local retention;
@@ -73,16 +83,18 @@ database/backup replicas.
 
 ## Production endpoints
 
-Only three public DNS records are required:
+The browser surfaces use three HTTP hosts. Native agents use one additional raw TLS endpoint:
 
 | Host | Purpose | Reverse-proxy target |
 |---|---|---|
 | `monitc.talhacan.com` | Landing page, `/app`, desktop downloads and `/updates` | `127.0.0.1:9127` |
 | `monitc-api.talhacan.com` | REST API and terminal WebSocket | `127.0.0.1:9128` |
 | `monitcap.talhacan.com` | Private platform operator console | `127.0.0.1:9129` |
+| `monitc-agent.talhacan.com` | Native-agent gRPC over TLS | TCP/TLS passthrough to host port `9130` |
 
 Enable WebSocket proxying on the API host, force HTTPS, and preserve the `/updates` path on the
-main host. No additional subdomain is required for the current architecture.
+main host. The agent endpoint is not an HTTP reverse proxy: configure raw TCP/TLS passthrough with
+SNI preserved, or point the DNS record directly at a firewall-restricted listener on port `9130`.
 
 ## Security model
 
@@ -101,25 +113,31 @@ monitc does not store SSH credentials or personal fields as plaintext:
 - browser access tokens stay in memory; refresh tokens use a host-only `HttpOnly`, `Secure`,
   `SameSite=Strict` cookie;
 - workspace RBAC and plan entitlements are enforced by the API, not only by the UI;
+- native agents pair with a one-time token whose digest is stored server-side, then use a
+  SPIFFE-shaped URI identity in a short-lived ECDSA client certificate;
+- the agent gateway requires TLS 1.3, validates workspace/server/certificate binding, rejects
+  replayed sequences and limits pairing attempts;
 - managed mode rejects loopback, link-local and private SSH destinations to reduce SSRF risk;
 - logs redact credentials, cookies and authorization headers.
 
-Continuous managed monitoring requires the collector to establish SSH connections, so this is
-not a zero-knowledge design: an authorized running worker can decrypt a selected credential in
-memory. Database theft alone does not reveal it, but loss of the vault key and database together
-would. Keep vault, PII and JWT keys outside PostgreSQL and back them up separately.
+Agent-only servers need no stored SSH secret: the private key remains on the monitored host and the
+connection is always initiated outbound. If SSH fallback is enabled, continuous managed access is
+not a zero-knowledge design: an authorized worker can decrypt that selected credential in memory.
+Database theft alone does not reveal it, but loss of the vault key and database together would.
+Keep vault, PII, JWT and agent-CA keys outside PostgreSQL and back them up separately.
 
 See [SECURITY.md](SECURITY.md) for boundaries, key handling, dependency notes and operational
-requirements.
+requirements. The native protocol, provider boundary and operational model are documented in
+[docs/NATIVE_AGENT.md](docs/NATIVE_AGENT.md).
 
 ## Plans
 
-| Plan | Servers | Seats | Retention | Minimum poll | Main capabilities |
-|---|---:|---:|---:|---:|---|
-| Community | 2 | 1 | 1 day | 60 s | Desktop, self-hosted and workload visibility |
-| Solo | 5 | 1 | 30 days | 30 s | Web terminal, SFTP and alerts |
-| Team | 25 | 5 | 90 days | 15 s | RBAC, audit log and priority support |
-| Scale | Custom | Custom | 365 days | 10 s | Custom limits, onboarding and SLA |
+| Plan | Servers | Seats | Retention | SSH poll | Native sample | Main capabilities |
+|---|---:|---:|---:|---:|---:|---|
+| Community | 2 | 1 | 1 day | 60 s | 5 s | Desktop, self-hosted and workload visibility |
+| Solo | 5 | 1 | 30 days | 30 s | 1 s | Web terminal, SFTP and alerts |
+| Team | 25 | 5 | 90 days | 15 s | 500 ms | RBAC, audit log and priority support |
+| Scale | Custom | Custom | 365 days | 10 s | 250 ms | Custom limits, onboarding and SLA |
 
 There is intentionally no payment provider in this release. Selecting a paid plan creates a
 contact request; a platform administrator can review it and assign the plan manually from the
@@ -206,7 +224,8 @@ docker compose --env-file infra/self-hosted/.env \
 ```
 
 Point the web proxy to `127.0.0.1:9127`, the API/WebSocket proxy to `127.0.0.1:9128`, and the
-optional instance operator console to `127.0.0.1:9129`. Full instructions are in
+optional instance operator console to `127.0.0.1:9129`. Route a raw TCP/TLS agent endpoint to
+`127.0.0.1:9130`; do not place the gRPC listener behind an HTTP-only proxy. Full instructions are in
 [infra/self-hosted/README.md](infra/self-hosted/README.md).
 
 ## Managed Kubernetes deployment
@@ -221,11 +240,12 @@ cd /www/wwwroot/monitc
 The script:
 
 1. creates production secrets only on the first install;
-2. builds revision-tagged API, web and admin images;
-3. makes the images available to the configured K3s runtime;
-4. applies the `monitc` namespace, data services and application manifests;
-5. waits for each rollout;
-6. verifies health, pgcrypto/pgvector, Redis cluster state and workloads.
+2. builds revision-tagged API, web, admin and native-agent gateway images;
+3. cross-compiles checksum-pinned Linux amd64/arm64 agent artifacts;
+4. makes the images available to the configured K3s runtime;
+5. applies the `monitc` namespace, data services and application manifests;
+6. waits for each rollout;
+7. verifies health, pgcrypto/pgvector, Redis cluster state, agent PKI and workloads.
 
 GitHub Actions contains an SSH-based production workflow for later use. Until the Actions quota is
 available, use the same manual script after a fast-forward pull. See
@@ -238,9 +258,9 @@ consistency, builds each OS package, requires signed/notarized macOS output, ver
 metadata, publishes the GitHub release and synchronizes the update feed over pinned SSH.
 
 ```bash
-npm run release:verify -- v1.4.1
-git tag -a v1.4.1 -m "monitc v1.4.1"
-git push origin v1.4.1
+npm run release:verify -- v1.5.0
+git tag -a v1.5.0 -m "monitc v1.5.0"
+git push origin v1.5.0
 ```
 
 Required release and deployment secrets are documented in
@@ -255,6 +275,7 @@ npm run typecheck --prefix platform
 npm test --prefix platform
 npm run build --prefix platform
 npm run build --prefix website
+cd agent && go vet ./... && go test -race ./...
 docker compose --env-file infra/self-hosted/.env \
   -f infra/self-hosted/docker-compose.yml config
 ```

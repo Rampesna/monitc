@@ -169,9 +169,51 @@ jobs:
             dist/*.blockmap
             dist/latest-linux.yml
 
+  agent:
+    name: Build Linux native agent
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.12'
+          cache-dependency-path: agent/go.sum
+
+      - name: Test and build native agent
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          mkdir -p agent-dist
+          (
+            cd agent
+            go test ./...
+            for arch in amd64 arm64; do
+              GOOS=linux GOARCH="$arch" CGO_ENABLED=0 \
+                go build -trimpath -ldflags "-s -w -X main.version=$version" \
+                -o "../agent-dist/monitc-agent-linux-$arch" ./cmd/monitc-agent
+            done
+          )
+          cp agent/packaging/systemd/monitc-agent.service agent-dist/
+          (
+            cd agent-dist
+            for binary in monitc-agent-linux-*; do
+              sha256sum "$binary" > "$binary.sha256"
+            done
+          )
+
+      - name: Upload native agent release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-agent
+          if-no-files-found: error
+          retention-days: 7
+          path: agent-dist/*
+
   publish:
     name: Publish GitHub release
-    needs: [macos, windows, linux]
+    needs: [macos, windows, linux, agent]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -227,6 +269,14 @@ jobs:
           }
           await writeFile('release-assets/release.json', `${JSON.stringify(metadata, null, 2)}\n`)
           NODE
+          mkdir -p "release-assets/agent/${GITHUB_REF_NAME}"
+          for agent_asset in \
+            release-assets/monitc-agent-linux-* \
+            release-assets/monitc-agent.service; do
+            [ -f "$agent_asset" ] || continue
+            mv "$agent_asset" "release-assets/agent/${GITHUB_REF_NAME}/"
+          done
+          printf '%s\n' "$GITHUB_REF_NAME" > release-assets/agent/latest.txt
 
       - name: Configure pinned SSH identity
         shell: bash
@@ -254,4 +304,4 @@ jobs:
             release-assets/ "$DEPLOY_USER@$DEPLOY_HOST:$staging/"
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            "find '$staging' -type f -maxdepth 1 -exec mv -f {} /www/wwwroot/monitc/runtime/releases/ \\; && rmdir '$staging' && /www/wwwroot/monitc/infra/scripts/sync-releases.sh"
+            "rsync -a --checksum '$staging/' /www/wwwroot/monitc/runtime/releases/ && rm -rf -- '$staging' && /www/wwwroot/monitc/infra/scripts/sync-releases.sh"

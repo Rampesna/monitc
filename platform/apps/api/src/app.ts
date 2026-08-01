@@ -19,6 +19,7 @@ import { adminRoutes } from './routes/admin.js'
 import { releaseRoutes } from './routes/releases.js'
 import { alertRoutes } from './routes/alerts.js'
 import { accessRoutes, terminalSocketRoutes } from './routes/access.js'
+import { agentBootstrapRoutes } from './routes/agent.js'
 import './types.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -71,7 +72,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     keyGenerator: (request) => request.ip
   })
 
-  app.get('/health/live', async () => ({ status: 'ok', service: 'monitc-api', version: '1.4.1' }))
+  app.get('/health/live', async () => ({ status: 'ok', service: 'monitc-api', version: '1.5.0' }))
   app.get('/health/ready', async (_request, reply) => {
     try {
       await Promise.all([db.query('SELECT 1'), redis.ping()])
@@ -91,6 +92,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(alertRoutes, { prefix: '/api/v1/alerts' })
   await app.register(adminRoutes, { prefix: '/api/v1/admin' })
   await app.register(releaseRoutes, { prefix: '/api/v1/releases' })
+  await app.register(agentBootstrapRoutes, { prefix: '/api/v1/agent' })
   await app.register(terminalSocketRoutes, { prefix: '/api/v1/ws' })
 
   app.setNotFoundHandler(async (_request, reply) => {
