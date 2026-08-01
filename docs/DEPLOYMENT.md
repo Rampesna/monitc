@@ -46,8 +46,9 @@ inside mutual TLS and must use an aaPanel stream/raw TCP proxy or direct firewal
 SNI and do not configure an HTTP location proxy. The public hostname is distributed in the agent
 installation command and therefore must match the gateway certificate.
 
-The web container serves the landing page at `/`, the customer application at `/app`, and desktop
-release artifacts at `/updates`.
+The web container serves the landing page at `/`, the customer application at `/app`, proxies the
+customer app's `/api/v1` and terminal WebSocket traffic to the API service on the same origin, and
+serves desktop release artifacts at `/updates`.
 
 ## First managed install
 

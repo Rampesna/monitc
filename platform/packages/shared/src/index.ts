@@ -12,6 +12,8 @@ export interface PlanEntitlements {
   minimumPollSeconds: number
   webTerminal: boolean
   sftp: boolean
+  workloadLogs: boolean
+  workloadActions: boolean
   alerts: boolean
   auditLog: boolean
   agentMode: boolean
@@ -42,6 +44,8 @@ export const PLANS: PlanDefinition[] = [
       minimumPollSeconds: 60,
       webTerminal: false,
       sftp: false,
+      workloadLogs: false,
+      workloadActions: false,
       alerts: false,
       auditLog: false,
       agentMode: true,
@@ -63,13 +67,15 @@ export const PLANS: PlanDefinition[] = [
       minimumPollSeconds: 30,
       webTerminal: true,
       sftp: true,
+      workloadLogs: true,
+      workloadActions: false,
       alerts: true,
       auditLog: false,
       agentMode: true,
       agentSampleIntervalMs: 1000,
       prioritySupport: false
     },
-    features: ['5 managed servers', '1s native telemetry', '30-day history', 'Web terminal and SFTP', 'Sustained in-app alert rules']
+    features: ['5 managed servers', '1s native telemetry', '30-day history', 'Web terminal, SFTP and workload logs', 'Sustained in-app alert rules']
   },
   {
     code: 'team',
@@ -83,13 +89,15 @@ export const PLANS: PlanDefinition[] = [
       minimumPollSeconds: 15,
       webTerminal: true,
       sftp: true,
+      workloadLogs: true,
+      workloadActions: true,
       alerts: true,
       auditLog: true,
       agentMode: true,
       agentSampleIntervalMs: 500,
       prioritySupport: true
     },
-    features: ['25 managed servers', '500ms native telemetry', '5 team seats', '90-day history', 'RBAC and audit log']
+    features: ['25 managed servers', '500ms native telemetry', '5 team seats', '90-day history', 'Container and pod operations with audit log']
   },
   {
     code: 'scale',
@@ -103,13 +111,15 @@ export const PLANS: PlanDefinition[] = [
       minimumPollSeconds: 10,
       webTerminal: true,
       sftp: true,
+      workloadLogs: true,
+      workloadActions: true,
       alerts: true,
       auditLog: true,
       agentMode: true,
       agentSampleIntervalMs: 250,
       prioritySupport: true
     },
-    features: ['Custom server and seat limits', '250ms native telemetry', '365-day history', 'Dedicated onboarding', 'Custom SLA']
+    features: ['Custom server and seat limits', '250ms native telemetry', '365-day history', 'Full workload operations and audit history', 'Dedicated onboarding and custom SLA']
   }
 ]
 

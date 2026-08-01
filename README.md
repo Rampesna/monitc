@@ -40,6 +40,8 @@ operator console.
   restart state and per-pod receive/transmit rates.
 - Native Docker workload telemetry: container state, CPU, memory limit/usage and receive/transmit
   rates in the web workload fleet.
+- Package- and RBAC-gated Docker/Kubernetes logs, inspection and audited restart/start/stop
+  operations in the web app, with focused workload drawers and fleet search.
 - Docker and Kubernetes inventory and operations in the desktop client.
 - Browser and desktop SSH terminals.
 - SFTP navigation, editor, upload/download, create, copy, cut, paste, move and recursive delete.
@@ -87,13 +89,15 @@ The browser surfaces use three HTTP hosts. Native agents use one additional raw 
 
 | Host | Purpose | Reverse-proxy target |
 |---|---|---|
-| `monitc.talhacan.com` | Landing page, `/app`, desktop downloads and `/updates` | `127.0.0.1:9127` |
-| `monitc-api.talhacan.com` | REST API and terminal WebSocket | `127.0.0.1:9128` |
+| `monitc.talhacan.com` | Landing page, `/app`, same-origin web API/WebSocket, desktop downloads and `/updates` | `127.0.0.1:9127` |
+| `monitc-api.talhacan.com` | Public REST API for admin and native/mobile clients | `127.0.0.1:9128` |
 | `monitcap.talhacan.com` | Private platform operator console | `127.0.0.1:9129` |
 | `monitc-agent.talhacan.com` | Native-agent gRPC over TLS | TCP/TLS passthrough to host port `9130` |
 
-Enable WebSocket proxying on the API host, force HTTPS, and preserve the `/updates` path on the
-main host. The agent endpoint is not an HTTP reverse proxy: configure raw TCP/TLS passthrough with
+The web container proxies `/api/v1` directly to the in-cluster API so login, workspace bootstrap
+and terminal sessions avoid cross-origin preflights. Keep WebSocket proxying enabled on the public
+API host for non-web clients, force HTTPS, and preserve `/updates` on the main host. The agent
+endpoint is not an HTTP reverse proxy: configure raw TCP/TLS passthrough with
 SNI preserved, or point the DNS record directly at a firewall-restricted listener on port `9130`.
 Until the managed `:443` route resolves, the hosted installer verifies and uses
 `45.131.1.244:9130` while retaining `monitc-agent.talhacan.com` as the TLS server name. Custom and
@@ -144,9 +148,9 @@ requirements. The native protocol, provider boundary and operational model are d
 | Plan | Servers | Seats | Retention | SSH poll | Native sample | Main capabilities |
 |---|---:|---:|---:|---:|---:|---|
 | Community | 2 | 1 | 1 day | 60 s | 5 s | Desktop, self-hosted and workload visibility |
-| Solo | 5 | 1 | 30 days | 30 s | 1 s | Web terminal, SFTP and alerts |
-| Team | 25 | 5 | 90 days | 15 s | 500 ms | RBAC, audit log and priority support |
-| Scale | Custom | Custom | 365 days | 10 s | 250 ms | Custom limits, onboarding and SLA |
+| Solo | 5 | 1 | 30 days | 30 s | 1 s | Web terminal, SFTP, workload logs and alerts |
+| Team | 25 | 5 | 90 days | 15 s | 500 ms | Workload operations, RBAC, audit log and priority support |
+| Scale | Custom | Custom | 365 days | 10 s | 250 ms | Full operations, custom limits, onboarding and SLA |
 
 There is intentionally no payment provider in this release. Selecting a paid plan creates a
 contact request; a platform administrator can review it and assign the plan manually from the

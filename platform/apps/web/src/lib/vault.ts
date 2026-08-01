@@ -1,4 +1,3 @@
-import sodium from 'libsodium-wrappers'
 import { api } from './api'
 
 interface VaultKey {
@@ -19,8 +18,11 @@ export interface SshSecret {
 }
 
 let cachedKey: VaultKey | null = null
+let sodiumPromise: Promise<typeof import('libsodium-wrappers').default> | null = null
 
 export async function sealSshSecret(secret: SshSecret): Promise<{ keyId: string; ciphertext: string }> {
+  sodiumPromise ??= import('libsodium-wrappers').then((module) => module.default)
+  const sodium = await sodiumPromise
   await sodium.ready
   cachedKey ??= await api<VaultKey>('/api/v1/security/vault-key')
   const publicKey = sodium.from_base64(cachedKey.publicKey, sodium.base64_variants.ORIGINAL)

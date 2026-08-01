@@ -1,16 +1,27 @@
 import type { AuthSession } from '@monitc/shared'
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8080').replace(/\/$/, '')
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8080' : window.location.origin)
+).replace(/\/$/, '')
 
 let accessToken = ''
 let refreshPromise: Promise<AuthSession | null> | null = null
+const responseCache = new Map<string, { expiresAt: number; value?: unknown; pending?: Promise<unknown> }>()
 
 export function apiOrigin(): string {
   return API_URL
 }
 
 export function setAccessToken(token: string): void {
+  if (!token || !accessToken) responseCache.clear()
   accessToken = token
+}
+
+export function clearApiCache(prefix = ''): void {
+  for (const key of responseCache.keys()) {
+    if (!prefix || key.startsWith(prefix)) responseCache.delete(key)
+  }
 }
 
 async function refresh(): Promise<AuthSession | null> {
@@ -66,8 +77,25 @@ export async function api<T>(
     const body = await response.json().catch(() => ({})) as { error?: string; code?: string; message?: string }
     throw new ApiError(response.status, body.code || body.error || 'request_failed', body.message || 'Request failed.')
   }
+  if ((options.method || 'GET').toUpperCase() !== 'GET') clearApiCache()
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
+}
+
+export function apiCached<T>(path: string, ttlMs = 5_000): Promise<T> {
+  const now = Date.now()
+  const cached = responseCache.get(path)
+  if (cached?.value !== undefined && cached.expiresAt > now) return Promise.resolve(cached.value as T)
+  if (cached?.pending) return cached.pending as Promise<T>
+  const pending = api<T>(path).then((value) => {
+    responseCache.set(path, { value, expiresAt: Date.now() + ttlMs })
+    return value
+  }).catch((error) => {
+    responseCache.delete(path)
+    throw error
+  })
+  responseCache.set(path, { expiresAt: now + ttlMs, pending })
+  return pending
 }
 
 export async function apiBlob(path: string): Promise<Blob> {
