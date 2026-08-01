@@ -7,6 +7,7 @@ import { config } from '../config.js'
 import { db } from '../db/pool.js'
 import { redis } from '../lib/redis.js'
 import { decryptVaultSecret } from '../lib/vault.js'
+import { normalizeWorkloadCommandError } from '../lib/workload-error.js'
 import { audit } from '../services/audit.js'
 import { SshConnection } from '../services/ssh-collector.js'
 
@@ -89,6 +90,17 @@ async function withSsh<T>(
     return await operation(connection)
   } finally {
     connection.close()
+  }
+}
+
+async function withWorkloadSsh<T>(
+  server: ServerSecretRow,
+  operation: (connection: SshConnection) => Promise<T>
+): Promise<T> {
+  try {
+    return await withSsh(server, operation)
+  } catch (error) {
+    throw normalizeWorkloadCommandError(error)
   }
 }
 
@@ -277,7 +289,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     const query = workloadLogsQuerySchema.safeParse(request.query)
     if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withSsh(server, (connection) => connection.exec(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(
       `docker logs --timestamps --tail ${query.data.tail} ${shellQuote(params.data.containerId)} 2>&1 | head -c 2097152`,
       25_000
     ))
@@ -291,7 +303,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     if (!params.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withSsh(server, (connection) => connection.exec(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(
       `docker inspect ${shellQuote(params.data.containerId)}`,
       20_000
     ))
@@ -305,7 +317,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     const input = dockerActionSchema.safeParse(request.body)
     if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withSsh(server, (connection) => connection.exec(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(
       `docker ${input.data.action} ${shellQuote(params.data.containerId)}`,
       30_000
     ))
@@ -329,7 +341,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
     const container = query.data.container ? ` -c ${shellQuote(query.data.container)}` : ''
     const previous = query.data.previous ? ' --previous' : ''
-    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
       `logs -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)}${container}${previous} --timestamps --tail=${query.data.tail} | head -c 2097152`
     ), 25_000))
     reply.header('cache-control', 'no-store')
@@ -342,7 +354,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
     const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
     if (!params.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
       `describe pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)}`
     ), 25_000))
     return { output }
@@ -355,7 +367,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
     const input = podActionSchema.safeParse(request.body)
     if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+    const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
       `delete pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)} --wait=false`
     ), 30_000))
     await audit({
@@ -545,6 +557,8 @@ export async function terminalSocketRoutes(app: FastifyInstance): Promise<void> 
     }
     let connection: SshConnection | null = null
     let shell: ClientChannel | null = null
+    let pendingInput = ''
+    let pendingWindow: { cols: number; rows: number } | null = null
     const close = (): void => {
       try {
         shell?.end()
@@ -556,6 +570,29 @@ export async function terminalSocketRoutes(app: FastifyInstance): Promise<void> 
     }
     socket.once('close', close)
     socket.once('error', close)
+    socket.on('message', (rawMessage: Buffer) => {
+      try {
+        const message = JSON.parse(rawMessage.toString()) as {
+          type: 'input' | 'resize'
+          data?: string
+          cols?: number
+          rows?: number
+        }
+        if (message.type === 'input' && typeof message.data === 'string') {
+          const input = message.data.slice(0, 16_384)
+          if (shell) shell.write(input)
+          else pendingInput = `${pendingInput}${input}`.slice(0, 16_384)
+        }
+        if (message.type === 'resize') {
+          const cols = Math.max(20, Math.min(500, Number(message.cols) || 120))
+          const rows = Math.max(5, Math.min(200, Number(message.rows) || 32))
+          if (shell) shell.setWindow(rows, cols, 0, 0)
+          else pendingWindow = { cols, rows }
+        }
+      } catch {
+        socket.close(1003, 'Invalid message')
+      }
+    })
 
     void (async () => {
       const query = z.object({ ticket: z.string().uuid() }).safeParse(request.query)
@@ -589,6 +626,10 @@ export async function terminalSocketRoutes(app: FastifyInstance): Promise<void> 
             return
           }
           shell = channel
+          if (pendingWindow) channel.setWindow(pendingWindow.rows, pendingWindow.cols, 0, 0)
+          if (pendingInput) channel.write(pendingInput)
+          pendingWindow = null
+          pendingInput = ''
           channel.on('data', (chunk: Buffer) => {
             if (socket.readyState === 1) {
               socket.send(JSON.stringify({ type: 'output', data: chunk.toString('utf8') }))
@@ -600,24 +641,6 @@ export async function terminalSocketRoutes(app: FastifyInstance): Promise<void> 
             }
           })
           channel.once('close', () => socket.close(1000, 'Shell closed'))
-          socket.on('message', (rawMessage: Buffer) => {
-            try {
-              const message = JSON.parse(rawMessage.toString()) as {
-                type: 'input' | 'resize'
-                data?: string
-                cols?: number
-                rows?: number
-              }
-              if (message.type === 'input' && typeof message.data === 'string') channel.write(message.data.slice(0, 16_384))
-              if (message.type === 'resize') {
-                const cols = Math.max(20, Math.min(500, Number(message.cols) || 120))
-                const rows = Math.max(5, Math.min(200, Number(message.rows) || 32))
-                channel.setWindow(rows, cols, 0, 0)
-              }
-            } catch {
-              socket.close(1003, 'Invalid message')
-            }
-          })
         }
       )
     })().catch((error) => {

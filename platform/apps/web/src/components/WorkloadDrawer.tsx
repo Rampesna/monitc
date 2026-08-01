@@ -82,9 +82,15 @@ export function WorkloadDrawer({ selected, onClose, onChanged }: {
         setFetchedAt(new Date().toISOString())
       }
     } catch (caught) {
-      const message = caught instanceof ApiError && caught.status === 409
-        ? 'This server needs an encrypted SSH fallback before remote logs can be opened.'
-        : caught instanceof Error ? caught.message : 'Workload details could not be loaded.'
+      const message = caught instanceof ApiError && caught.status === 404
+        ? 'This workload is no longer present on the server. The fleet list is being refreshed.'
+        : caught instanceof ApiError && caught.status === 409
+          ? 'This server needs an encrypted SSH fallback before remote logs can be opened.'
+          : caught instanceof Error ? caught.message : 'Workload details could not be loaded.'
+      if (caught instanceof ApiError && caught.status === 404) {
+        setAutoRefresh(false)
+        onChanged()
+      }
       setError(message)
     } finally {
       if (!silent) setLoading(false)
