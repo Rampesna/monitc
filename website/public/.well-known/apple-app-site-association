@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "SGQ86WW4J3.com.monitc.mobile"
+        ],
+        "components": [
+          {
+            "/": "/app/*",
+            "comment": "Open Monitc workspace links in the native app."
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "SGQ86WW4J3.com.monitc.mobile"
+    ]
+  }
+}

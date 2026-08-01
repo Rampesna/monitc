@@ -45,7 +45,7 @@ async function loadServer(
   const result = await db.query<ServerSecretRow>(
     `SELECT sc.id, sc.secret_ciphertext, sc.secret_key_id, p.entitlements
      FROM server_connections sc
-     JOIN subscriptions s ON s.workspace_id = sc.workspace_id AND s.status IN ('active', 'trialing')
+     JOIN subscriptions s ON s.workspace_id = sc.workspace_id AND s.status IN ('active', 'trialing', 'grace_period')
      JOIN plans p ON p.code = s.plan_code
      WHERE sc.id = $1 AND sc.workspace_id = $2`,
     [serverId, workspaceId]

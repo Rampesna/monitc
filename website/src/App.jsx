@@ -36,6 +36,46 @@ const GITHUB_RELEASES = 'https://github.com/Rampesna/monitc/releases/latest'
 const GITHUB_REPO = 'https://github.com/Rampesna/monitc'
 const WEB_APP = '/app/'
 
+const legalPages = {
+  '/privacy': {
+    eyebrow: 'PRIVACY BY DESIGN',
+    title: 'Privacy Policy',
+    lead: 'Monitc is built to minimize what we can see. This policy explains what the hosted service and mobile app process, why it is needed, and the controls available to you.',
+    updated: 'Effective August 1, 2026',
+    sections: [
+      { title: 'What we process', paragraphs: ['We process account identifiers such as your name, email address, workspace membership and authentication identities so you can sign in and collaborate.', 'For hosted monitoring, Monitc processes infrastructure telemetry, alert events and encrypted connection material needed to provide the service. Self-hosted instance addresses and mobile session tokens are stored in the iOS Keychain and are not uploaded as reusable plaintext credentials.'] },
+      { title: 'How sensitive data is protected', paragraphs: ['Server access material is encrypted before database storage. Blind indexes are used where records must be matched without exposing their original value. Mobile sessions use short-lived access tokens and rotating refresh sessions.', 'Native agents establish outbound connections with workload identity and mTLS. Access to terminals, files, logs and workload actions is governed by workspace role and plan entitlements.'] },
+      { title: 'Authentication and payments', paragraphs: ['You may sign in with a password, passkey, Apple or Google. Provider identity tokens are verified by Monitc and matching email addresses are never silently linked to an existing account.', 'Purchases made in the iOS app are processed by Apple. Monitc receives signed transaction and entitlement information, not your full payment-card details. Future payment providers will be recorded separately under the same provider-neutral billing model.'] },
+      { title: 'Retention and your choices', paragraphs: ['Telemetry retention depends on your workspace plan. Security and billing records are retained only as needed for service integrity, fraud prevention and legal obligations.', 'You may request access, correction or deletion of your account data. Self-hosted operators control the data retained inside their own Monitc installation.'] },
+      { title: 'Contact', paragraphs: ['Questions or privacy requests can be sent to talha@talhacan.com. We may update this policy when the product or applicable requirements change; the effective date above will always identify the current version.'] }
+    ]
+  },
+  '/terms': {
+    eyebrow: 'CLEAR OPERATING TERMS',
+    title: 'Terms of Use',
+    lead: 'These terms govern use of Monitc Cloud, the desktop and mobile clients, and optional access to customer-operated Monitc installations.',
+    updated: 'Effective August 1, 2026',
+    sections: [
+      { title: 'Your account and infrastructure', paragraphs: ['You are responsible for the accuracy of account information, safeguarding your authentication methods and ensuring you are authorized to monitor or operate every connected system.', 'Monitc exposes operational capabilities. Review targets carefully before running container or Kubernetes actions and maintain independent backups and recovery procedures.'] },
+      { title: 'Subscriptions', paragraphs: ['iOS subscriptions are billed through Apple and renew automatically unless cancelled at least 24 hours before the current period ends. Annual prices are set to the equivalent of ten monthly payments. Manage or cancel an Apple subscription in Apple ID Settings.', 'Feature availability, server limits, retention and action permissions follow the active plan shown before purchase. Self-hosted Mobile is a separate entitlement for using the iOS client with Monitc installations you operate.'] },
+      { title: 'Acceptable use', paragraphs: ['Do not use Monitc to access systems without authorization, distribute malicious code, evade security controls or interfere with the service or other users. We may restrict abusive activity to protect customers and infrastructure.'] },
+      { title: 'Availability and responsibility', paragraphs: ['Monitoring data and alerts support operational decisions but do not replace your own redundancy, incident response or security controls. Services may occasionally be interrupted for maintenance, provider outages or circumstances outside reasonable control.'] },
+      { title: 'Contact', paragraphs: ['Questions about these terms can be sent to talha@talhacan.com. Mandatory consumer rights in your country are not limited by these terms.'] }
+    ]
+  },
+  '/support': {
+    eyebrow: 'HUMAN SUPPORT',
+    title: 'Monitc Support',
+    lead: 'Tell us what you were doing, which workspace and platform you used, and the approximate time of the issue. Never include passwords, private keys or raw server credentials.',
+    updated: 'Support for web, desktop, iOS and self-hosted deployments',
+    sections: [
+      { title: 'Before you contact us', paragraphs: ['Confirm the server or native agent is online, retry the operation once, and note any visible request or correlation identifier. For self-hosted systems, include the Monitc version and deployment type without attaching secrets.'] },
+      { title: 'Account and subscription help', paragraphs: ['Apple subscriptions can be restored from Settings → Subscription in the iOS app. Sign-in providers and passkeys are managed under Settings → Security.', 'For workspace access, billing entitlements, account deletion or a managed onboarding request, contact us from the email address associated with your account.'] },
+      { title: 'Contact', paragraphs: ['Email talha@talhacan.com. Security-sensitive reports should begin with “Monitc security” in the subject so they can be triaged appropriately.'] }
+    ]
+  }
+}
+
 const plans = [
   { name: 'Community', price: '$0', description: 'Local-first infrastructure for personal operators.', features: ['2 servers', '5s native telemetry', 'Desktop and self-hosted', 'Kubernetes visibility'] },
   { name: 'Solo', price: '$12', description: 'A focused managed workspace for one operator.', features: ['5 managed servers', '1s native telemetry', 'Web terminal and SFTP', '30-day history'], highlighted: true },
@@ -385,7 +425,48 @@ function FinalCta({ release }) {
 
 function Footer() {
   return (
-    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href={GITHUB_REPO}>GitHub</a><a href={WEB_APP}>Web app</a><span>© {new Date().getFullYear()} monitc</span></div></div></footer>
+    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href={GITHUB_REPO}>GitHub</a><a href={WEB_APP}>Web app</a><span>© {new Date().getFullYear()} monitc</span></div></div></footer>
+  )
+}
+
+function LegalPage({ page }) {
+  useEffect(() => {
+    const previousTitle = document.title
+    const description = document.querySelector('meta[name="description"]')
+    const previousDescription = description?.getAttribute('content')
+    document.title = `${page.title} — monitc`
+    description?.setAttribute('content', page.lead)
+    return () => {
+      document.title = previousTitle
+      if (previousDescription) description?.setAttribute('content', previousDescription)
+    }
+  }, [page])
+
+  return (
+    <div className="legal-page">
+      <Header release={{}} />
+      <main className="shell legal-shell">
+        <div className="legal-hero">
+          <p className="eyebrow">{page.eyebrow}</p>
+          <h1>{page.title}</h1>
+          <p>{page.lead}</p>
+          <span>{page.updated}</span>
+        </div>
+        <div className="legal-content">
+          {page.sections.map((section) => (
+            <section key={section.title}>
+              <h2>{section.title}</h2>
+              {section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+            </section>
+          ))}
+        </div>
+        <div className="legal-contact">
+          <div><LockKeyhole size={19} /><span><strong>Need a direct answer?</strong><small>We reply personally.</small></span></div>
+          <a href="mailto:talha@talhacan.com">talha@talhacan.com <ArrowRight size={14} /></a>
+        </div>
+      </main>
+      <Footer />
+    </div>
   )
 }
 
@@ -473,5 +554,7 @@ export default function App() {
     window.location.replace('https://monitcap.talhacan.com')
     return null
   }
+  const legalPage = legalPages[window.location.pathname.replace(/\/$/, '') || '/']
+  if (legalPage) return <LegalPage page={legalPage} />
   return <><Header release={release} /><Hero release={release} /><Features /><Security /><Pricing /><Updates release={release} /><FinalCta release={release} /><Footer /></>
 }

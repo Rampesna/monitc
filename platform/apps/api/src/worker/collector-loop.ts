@@ -233,7 +233,7 @@ async function loadWork(): Promise<ServerWorkItem[]> {
        COALESCE((p.entitlements->>'minimumPollSeconds')::int, 60) AS minimum_poll_seconds,
        COALESCE((p.entitlements->>'retentionDays')::int, 1) AS retention_days
      FROM server_connections sc
-     JOIN subscriptions s ON s.workspace_id = sc.workspace_id AND s.status IN ('active', 'trialing')
+     JOIN subscriptions s ON s.workspace_id = sc.workspace_id AND s.status IN ('active', 'trialing', 'grace_period')
      JOIN plans p ON p.code = s.plan_code
      WHERE sc.connection_mode = 'ssh'
      ORDER BY sc.last_seen_at ASC NULLS FIRST`

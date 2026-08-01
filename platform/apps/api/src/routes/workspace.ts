@@ -38,7 +38,7 @@ async function hasAuditLog(workspaceId: string): Promise<boolean> {
     `SELECT COALESCE((p.entitlements->>'auditLog')::boolean, false) AS enabled
      FROM subscriptions s
      JOIN plans p ON p.code = s.plan_code
-     WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing')`,
+     WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing', 'grace_period')`,
     [workspaceId]
   )
   return result.rows[0]?.enabled || false
@@ -61,7 +61,7 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
         (SELECT count(*)::int FROM workspace_members m WHERE m.workspace_id = w.id) AS member_count
        FROM workspaces w
        JOIN workspace_members wm ON wm.workspace_id = w.id AND wm.user_id = $2
-       LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing')
+       LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing', 'grace_period')
        WHERE w.id = $1`,
       [request.auth.workspaceId, request.auth.userId]
     )
@@ -107,7 +107,7 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
            NULLIF(p.entitlements->>'seats', '')::int AS seat_limit
          FROM subscriptions s
          JOIN plans p ON p.code = s.plan_code
-         WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing')
+         WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing', 'grace_period')
          LIMIT 1`,
         [request.auth.workspaceId]
       )

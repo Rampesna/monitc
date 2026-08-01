@@ -20,6 +20,8 @@ import { releaseRoutes } from './routes/releases.js'
 import { alertRoutes } from './routes/alerts.js'
 import { accessRoutes, terminalSocketRoutes } from './routes/access.js'
 import { agentBootstrapRoutes } from './routes/agent.js'
+import { mobileAuthRoutes } from './routes/mobile-auth.js'
+import { mobileBillingRoutes } from './routes/mobile-billing.js'
 import './types.js'
 
 export async function buildApp(): Promise<FastifyInstance> {
@@ -34,6 +36,14 @@ export async function buildApp(): Promise<FastifyInstance> {
           'request.body.currentPassword',
           'request.body.newPassword',
           'request.body.encryptedSecret',
+          'request.body.identityToken',
+          'request.body.refreshToken',
+          'request.body.signedPayload',
+          'request.body.signedTransactionInfo',
+          'req.body.identityToken',
+          'req.body.refreshToken',
+          'req.body.signedPayload',
+          'req.body.signedTransactionInfo',
           'response.refreshToken'
         ],
         censor: '[REDACTED]'
@@ -92,6 +102,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   })
 
   await app.register(authRoutes, { prefix: '/api/v1/auth' })
+  await app.register(mobileAuthRoutes, { prefix: '/api/v1/mobile/auth' })
+  await app.register(mobileBillingRoutes, { prefix: '/api/v1/mobile/billing' })
   await app.register(securityRoutes, { prefix: '/api/v1/security' })
   await app.register(planRoutes, { prefix: '/api/v1/plans' })
   await app.register(workspaceRoutes, { prefix: '/api/v1/workspaces' })
@@ -108,14 +120,14 @@ export async function buildApp(): Promise<FastifyInstance> {
     await reply.code(404).send({ error: 'not_found' })
   })
   app.setErrorHandler(async (error, request, reply) => {
-    const normalized = error as Error & { statusCode?: number }
+    const normalized = error as Error & { statusCode?: number; errorCode?: string }
     request.log.error({ err: normalized }, 'request failed')
-    const statusCode = normalized.statusCode && normalized.statusCode >= 400 && normalized.statusCode < 500
+    const statusCode = normalized.statusCode && normalized.statusCode >= 400 && normalized.statusCode < 600
       ? normalized.statusCode
       : 500
     await reply.code(statusCode).send({
-      error: statusCode === 500 ? 'internal_error' : 'request_error',
-      message: statusCode === 500 ? 'The request could not be completed.' : normalized.message,
+      error: statusCode >= 500 ? (statusCode === 503 ? 'service_unavailable' : 'internal_error') : normalized.errorCode || 'request_error',
+      message: statusCode >= 500 ? 'The service is temporarily unavailable.' : normalized.message,
       requestId: request.id
     })
   })

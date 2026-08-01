@@ -36,7 +36,7 @@ async function alertsEnabled(workspaceId: string): Promise<boolean> {
   const result = await db.query<{ enabled: boolean }>(
     `SELECT COALESCE((p.entitlements->>'alerts')::boolean, false) AS enabled
      FROM subscriptions s JOIN plans p ON p.code = s.plan_code
-     WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing')`,
+     WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing', 'grace_period')`,
     [workspaceId]
   )
   return result.rows[0]?.enabled || false
