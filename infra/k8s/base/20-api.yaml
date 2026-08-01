@@ -43,27 +43,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       initContainers:
-        - name: release-permissions
-          image: busybox:1.37
-          imagePullPolicy: IfNotPresent
-          command: [sh, -ec, "mkdir -p /releases && chown -R 10001:10001 /releases"]
-          resources:
-            requests:
-              cpu: 10m
-              memory: 8Mi
-            limits:
-              cpu: 100m
-              memory: 32Mi
-          securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop: [ALL]
-              add: [CHOWN]
-          volumeMounts:
-            - name: releases
-              mountPath: /releases
         - name: agent-ca-export
           image: busybox:1.37
           imagePullPolicy: IfNotPresent
