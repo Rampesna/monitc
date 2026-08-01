@@ -80,7 +80,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.get('/health/live', healthRouteOptions, async () => ({
     status: 'ok',
     service: 'monitc-api',
-    version: '1.5.0'
+    version: '1.5.1'
   }))
   app.get('/health/ready', healthRouteOptions, async (_request, reply) => {
     try {

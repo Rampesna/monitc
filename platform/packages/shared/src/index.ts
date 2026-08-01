@@ -1,4 +1,4 @@
-export const PLATFORM_VERSION = '1.5.0'
+export const PLATFORM_VERSION = '1.5.1'
 
 export type PlanCode = 'community' | 'solo' | 'team' | 'scale'
 export type WorkspaceRole = 'owner' | 'admin' | 'operator' | 'viewer'

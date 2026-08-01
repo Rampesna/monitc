@@ -5,6 +5,8 @@ download_base="${MONITC_AGENT_DOWNLOAD_BASE:-https://monitc.talhacan.com/agent}"
 api_origin="${MONITC_API_ORIGIN:-https://monitc-api.talhacan.com}"
 gateway_address="${MONITC_AGENT_GATEWAY:-monitc-agent.talhacan.com:443}"
 gateway_server_name="${MONITC_AGENT_SERVER_NAME:-monitc-agent.talhacan.com}"
+official_gateway_address="monitc-agent.talhacan.com:443"
+official_fallback_address="${MONITC_AGENT_FALLBACK_GATEWAY:-45.131.1.244:9130}"
 requested_version="${MONITC_AGENT_VERSION:-}"
 
 if [ "$(uname -s)" != "Linux" ]; then
@@ -20,7 +22,7 @@ if [ "$(id -u)" -ne 0 ]; then
   echo "Run the installer through sudo so it can install the systemd service." >&2
   exit 1
 fi
-for command_name in curl sha256sum install systemctl; do
+for command_name in curl grep install openssl sha256sum systemctl timeout; do
   command -v "$command_name" >/dev/null 2>&1 || {
     echo "Missing required command: $command_name" >&2
     exit 1
@@ -58,10 +60,34 @@ curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-ti
   exit 1
 }
 
-install -d -m 0700 /etc/monitc-agent /var/lib/monitc-agent
-install -m 0755 "$temporary_directory/$binary_name" /usr/local/bin/monitc-agent
 curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 30 \
   "$api_origin/api/v1/agent/bootstrap-ca" -o "$temporary_directory/gateway-ca.crt"
+
+probe_gateway() {
+  local address="$1" output
+  output="$(timeout 12 openssl s_client \
+    -connect "$address" \
+    -servername "$gateway_server_name" \
+    -CAfile "$temporary_directory/gateway-ca.crt" \
+    -verify_return_error </dev/null 2>&1 || true)"
+  grep -Eq 'Verify return code: 0|Verification: OK' <<<"$output"
+}
+
+if [ ! -f /etc/monitc-agent/config.yaml ]; then
+  if ! probe_gateway "$gateway_address"; then
+    if [ "$gateway_address" = "$official_gateway_address" ] && probe_gateway "$official_fallback_address"; then
+      gateway_address="$official_fallback_address"
+      echo "Agent gateway DNS is not ready; using the verified direct endpoint $gateway_address." >&2
+    else
+      echo "Cannot verify the agent gateway at $gateway_address; nothing was installed." >&2
+      echo "Check DNS/TCP passthrough or set MONITC_AGENT_GATEWAY and MONITC_AGENT_SERVER_NAME." >&2
+      exit 1
+    fi
+  fi
+fi
+
+install -d -m 0700 /etc/monitc-agent /var/lib/monitc-agent
+install -m 0755 "$temporary_directory/$binary_name" /usr/local/bin/monitc-agent
 install -m 0644 "$temporary_directory/gateway-ca.crt" /etc/monitc-agent/gateway-ca.crt
 
 if [ ! -f /etc/monitc-agent/config.yaml ]; then
@@ -121,7 +147,8 @@ if [ ! -f /var/lib/monitc-agent/identity.crt ]; then
 fi
 
 systemctl daemon-reload
-systemctl enable --now monitc-agent.service
+systemctl enable monitc-agent.service
+systemctl restart monitc-agent.service
 
 for _ in $(seq 1 20); do
   if [ -f /var/lib/monitc-agent/identity.crt ]; then

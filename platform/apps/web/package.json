@@ -1,6 +1,6 @@
 {
   "name": "@monitc/web",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@monitc/shared": "1.5.0",
+    "@monitc/shared": "1.5.1",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "libsodium-wrappers": "^0.8.2",

@@ -18,6 +18,8 @@ import (
 
 var spoolNamePattern = regexp.MustCompile(`^([a-fA-F0-9-]{1,64})_([0-9]{20})_([0-9]{20})\.pb$`)
 
+const maximumQuarantinedBatches = 16
+
 type Spool struct {
 	mu           sync.Mutex
 	directory    string
@@ -108,6 +110,49 @@ func (s *Spool) Acknowledge(bootID string, throughSequence uint64) error {
 		}
 	}
 	return nil
+}
+
+// Quarantine removes a permanently rejected batch from the send queue while
+// retaining a bounded diagnostic copy. This prevents one malformed batch from
+// blocking every newer sample indefinitely.
+func (s *Spool) Quarantine(item SpoolItem) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if filepath.Dir(item.Path) != s.directory || spoolNamePattern.FindStringSubmatch(filepath.Base(item.Path)) == nil {
+		return "", errors.New("invalid metric spool path")
+	}
+	quarantineDirectory := filepath.Join(s.directory, "rejected")
+	if err := os.MkdirAll(quarantineDirectory, 0o700); err != nil {
+		return "", fmt.Errorf("create rejected metric directory: %w", err)
+	}
+	target := filepath.Join(quarantineDirectory, filepath.Base(item.Path))
+	if err := os.Rename(item.Path, target); err != nil {
+		return "", fmt.Errorf("quarantine rejected metric batch: %w", err)
+	}
+	entries, err := os.ReadDir(quarantineDirectory)
+	if err != nil {
+		return target, nil
+	}
+	type rejectedItem struct {
+		path       string
+		modifiedAt time.Time
+	}
+	rejected := make([]rejectedItem, 0, len(entries))
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info, infoErr := entry.Info()
+		if infoErr == nil {
+			rejected = append(rejected, rejectedItem{path: filepath.Join(quarantineDirectory, entry.Name()), modifiedAt: info.ModTime()})
+		}
+	}
+	sort.Slice(rejected, func(left, right int) bool { return rejected[left].modifiedAt.Before(rejected[right].modifiedAt) })
+	for len(rejected) > maximumQuarantinedBatches {
+		_ = os.Remove(rejected[0].path)
+		rejected = rejected[1:]
+	}
+	return target, nil
 }
 
 func (s *Spool) Stats() (uint64, uint32, error) {
