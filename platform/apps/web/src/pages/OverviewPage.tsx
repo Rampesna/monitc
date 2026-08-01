@@ -1,41 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Activity, ArrowRight, Boxes, CircleCheck, Clock3, Plus, Server, ShieldCheck, WifiOff } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useEffect, useState } from 'react'
+import { Activity, ArrowRight, Boxes, CircleCheck, Plus, Server, ShieldCheck, WifiOff } from 'lucide-react'
 import type { ServerSummary, SystemMetricPoint } from '@monitc/shared'
 import { Link } from 'react-router'
-import { api } from '../lib/api'
+import { api, apiCached } from '../lib/api'
 import { rate, timeAgo } from '../lib/format'
 import { AddServerModal } from '../components/AddServerModal'
 import { PageSkeleton } from '../components/Skeleton'
+import { MetricChart } from '../components/MetricChart'
 import { useAuth } from '../context'
 
-interface WorkspaceUsage {
-  id: string
-  name: string
-  plan: { name: string; entitlements: { servers: number | null; retentionDays: number } }
-  usage: { servers: number; members: number }
-}
-
 export function OverviewPage() {
-  const { user } = useAuth()
+  const { user, workspace } = useAuth()
   const [loading, setLoading] = useState(true)
   const [servers, setServers] = useState<ServerSummary[]>([])
-  const [workspace, setWorkspace] = useState<WorkspaceUsage | null>(null)
   const [points, setPoints] = useState<SystemMetricPoint[]>([])
+  const [chartServerId, setChartServerId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
   const load = async () => {
-    const [serverData, workspaceData] = await Promise.all([
-      api<{ servers: ServerSummary[] }>('/api/v1/servers'),
-      api<WorkspaceUsage>('/api/v1/workspaces/current')
+    const [serverData, metricData] = await Promise.all([
+      apiCached<{ servers: ServerSummary[] }>('/api/v1/servers', 8_000),
+      api<{ serverId: string | null; points: SystemMetricPoint[] }>('/api/v1/metrics/servers/overview?hours=1')
     ])
     setServers(serverData.servers)
-    setWorkspace(workspaceData)
-    const first = serverData.servers.find((server) => server.status === 'connected') || serverData.servers[0]
-    if (first) {
-      const history = await api<{ points: SystemMetricPoint[] }>(`/api/v1/metrics/servers/${first.id}/history?hours=1`).catch(() => ({ points: [] }))
-      setPoints(history.points)
-    }
+    setChartServerId(metricData.serverId)
+    setPoints(metricData.points)
   }
 
   useEffect(() => {
@@ -47,11 +36,8 @@ export function OverviewPage() {
   const connected = servers.filter((server) => server.status === 'connected').length
   const degraded = servers.filter((server) => server.status === 'degraded' || server.status === 'offline').length
   const latest = points.at(-1)
-  const chart = useMemo(() => points.map((point) => ({
-    ...point,
-    time: new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  })), [points])
   if (loading) return <PageSkeleton />
+  const chartServer = servers.find((server) => server.id === chartServerId)
 
   return (
     <div className="page overview-page">
@@ -69,23 +55,10 @@ export function OverviewPage() {
 
       <div className="overview-grid">
         <section className="panel activity-panel">
-          <header className="panel-header"><div><h2>Resource activity</h2><p>{servers[0]?.name || 'No server selected'} · last 60 minutes</p></div><span className="live-pill"><i /> Live</span></header>
-          {chart.length ? (
+          <header className="panel-header"><div><h2>Resource activity</h2><p>{chartServer?.name || 'No server selected'} · last 60 minutes</p></div><span className="live-pill"><i /> Live</span></header>
+          {points.length ? (
             <div className="main-chart">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chart} margin={{ top: 20, right: 8, left: -24, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="cpuArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#8b7cff" stopOpacity=".32" /><stop offset="100%" stopColor="#8b7cff" stopOpacity="0" /></linearGradient>
-                    <linearGradient id="memArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#48d5e5" stopOpacity=".2" /><stop offset="100%" stopColor="#48d5e5" stopOpacity="0" /></linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="#22222d" vertical={false} />
-                  <XAxis dataKey="time" stroke="#5b5b6d" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} minTickGap={36} />
-                  <YAxis domain={[0, 100]} stroke="#5b5b6d" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ background: '#111119', border: '1px solid #2b2b39', borderRadius: 10, fontSize: 11 }} />
-                  <Area type="monotone" dataKey="cpuPercent" name="CPU %" stroke="#8b7cff" strokeWidth={2} fill="url(#cpuArea)" />
-                  <Area type="monotone" dataKey="memoryPercent" name="Memory %" stroke="#48d5e5" strokeWidth={2} fill="url(#memArea)" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <MetricChart points={points} />
             </div>
           ) : (
             <div className="empty-chart"><Activity size={24} /><h3>Waiting for the first metric sample</h3><p>The collector will populate this view after a server is connected.</p></div>
@@ -110,7 +83,7 @@ export function OverviewPage() {
 
       <section className="plan-strip">
         <span className="plan-symbol"><ShieldCheck size={18} /></span>
-        <div><strong>{workspace?.plan.name} workspace</strong><p>{workspace?.usage.servers} of {workspace?.plan.entitlements.servers ?? 'unlimited'} server slots in use · {workspace?.plan.entitlements.retentionDays}-day history</p></div>
+        <div><strong>{workspace?.plan.name} workspace</strong><p>{servers.length} of {workspace?.plan.entitlements.servers ?? 'unlimited'} server slots in use · {workspace?.plan.entitlements.retentionDays}-day history</p></div>
         <Link to="/billing">Explore plans <ArrowRight size={13} /></Link>
       </section>
 

@@ -7,6 +7,7 @@ import { config } from '../config.js'
 import { db } from '../db/pool.js'
 import { redis } from '../lib/redis.js'
 import { decryptVaultSecret } from '../lib/vault.js'
+import { audit } from '../services/audit.js'
 import { SshConnection } from '../services/ssh-collector.js'
 
 const idSchema = z.uuid()
@@ -15,6 +16,14 @@ const ticketSchema = z.object({ capability: z.literal('terminal') })
 const contentSchema = z.object({ path: pathSchema, content: z.string().max(2 * 1024 * 1024) })
 const folderSchema = z.object({ path: pathSchema })
 const moveSchema = z.object({ source: pathSchema, target: pathSchema })
+const workloadNameSchema = z.string().min(1).max(253).regex(/^[A-Za-z0-9][A-Za-z0-9_.-]*$/)
+const workloadLogsQuerySchema = z.object({
+  tail: z.coerce.number().int().min(20).max(2_000).default(500),
+  container: workloadNameSchema.optional(),
+  previous: z.union([z.literal('true'), z.literal('false')]).default('false').transform((value) => value === 'true')
+})
+const dockerActionSchema = z.object({ action: z.enum(['start', 'stop', 'restart']) })
+const podActionSchema = z.object({ action: z.literal('restart') })
 
 interface ServerSecretRow {
   id: string
@@ -64,6 +73,72 @@ function requiredSshSecret(server: ServerSecretRow): [string, string] {
     throw error
   }
   return [server.secret_ciphertext, server.secret_key_id]
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`
+}
+
+async function withSsh<T>(
+  server: ServerSecretRow,
+  operation: (connection: SshConnection) => Promise<T>
+): Promise<T> {
+  const secret = await decryptVaultSecret(...requiredSshSecret(server))
+  const connection = await SshConnection.connect(secret)
+  try {
+    return await operation(connection)
+  } finally {
+    connection.close()
+  }
+}
+
+function kubectl(command: string): string {
+  return `export PATH="$PATH:/usr/local/bin:/usr/local/sbin"; export KUBECONFIG="\${KUBECONFIG:-/etc/rancher/k3s/k3s.yaml}"; if command -v kubectl >/dev/null 2>&1; then kubectl ${command}; elif command -v k3s >/dev/null 2>&1; then k3s kubectl ${command}; else echo 'kubectl is not available' >&2; exit 127; fi`
+}
+
+function publicContainerInspection(value: unknown): Record<string, unknown> {
+  const inspected = Array.isArray(value) ? value[0] : value
+  if (!inspected || typeof inspected !== 'object') return {}
+  const source = inspected as Record<string, unknown>
+  const config = (source.Config && typeof source.Config === 'object' ? source.Config : {}) as Record<string, unknown>
+  const host = (source.HostConfig && typeof source.HostConfig === 'object' ? source.HostConfig : {}) as Record<string, unknown>
+  const network = (source.NetworkSettings && typeof source.NetworkSettings === 'object' ? source.NetworkSettings : {}) as Record<string, unknown>
+  const state = (source.State && typeof source.State === 'object' ? source.State : {}) as Record<string, unknown>
+  const health = (state.Health && typeof state.Health === 'object' ? state.Health : {}) as Record<string, unknown>
+  return {
+    id: source.Id,
+    name: source.Name,
+    created: source.Created,
+    image: config.Image,
+    platform: source.Platform,
+    driver: source.Driver,
+    state: {
+      status: state.Status,
+      running: state.Running,
+      paused: state.Paused,
+      restarting: state.Restarting,
+      oomKilled: state.OOMKilled,
+      dead: state.Dead,
+      pid: state.Pid,
+      exitCode: state.ExitCode,
+      error: state.Error,
+      startedAt: state.StartedAt,
+      finishedAt: state.FinishedAt,
+      health: health.Status ? { status: health.Status, failingStreak: health.FailingStreak } : null
+    },
+    restartCount: source.RestartCount,
+    workingDirectory: config.WorkingDir,
+    exposedPorts: config.ExposedPorts,
+    restartPolicy: host.RestartPolicy,
+    resources: {
+      memory: host.Memory,
+      memoryReservation: host.MemoryReservation,
+      nanoCpus: host.NanoCpus,
+      cpuShares: host.CpuShares
+    },
+    ports: network.Ports,
+    networks: network.Networks
+  }
 }
 
 function lstat(sftp: SFTPWrapper, target: string): Promise<Stats> {
@@ -193,6 +268,105 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
       'NX'
     )
     return { ticket, expiresIn: 30 }
+  })
+
+  app.get('/:id/workloads/docker/:containerId/logs', { preHandler: requireScope('workloads:read') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
+    const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
+    const query = workloadLogsQuerySchema.safeParse(request.query)
+    if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
+    const output = await withSsh(server, (connection) => connection.exec(
+      `docker logs --timestamps --tail ${query.data.tail} ${shellQuote(params.data.containerId)} 2>&1 | head -c 2097152`,
+      25_000
+    ))
+    reply.header('cache-control', 'no-store')
+    return { output, fetchedAt: new Date().toISOString() }
+  })
+
+  app.get('/:id/workloads/docker/:containerId/inspect', { preHandler: requireScope('workloads:read') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
+    const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
+    if (!params.success) return reply.code(400).send({ error: 'validation_error' })
+    const output = await withSsh(server, (connection) => connection.exec(
+      `docker inspect ${shellQuote(params.data.containerId)}`,
+      20_000
+    ))
+    return { details: publicContainerInspection(JSON.parse(output)) }
+  })
+
+  app.post('/:id/workloads/docker/:containerId/action', { preHandler: requireScope('workloads:operate') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadActions) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadActions' })
+    const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
+    const input = dockerActionSchema.safeParse(request.body)
+    if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
+    const output = await withSsh(server, (connection) => connection.exec(
+      `docker ${input.data.action} ${shellQuote(params.data.containerId)}`,
+      30_000
+    ))
+    await audit({
+      workspaceId: request.auth!.workspaceId,
+      actorUserId: request.auth!.userId,
+      action: `workload.docker_${input.data.action}`,
+      resourceType: 'docker_container',
+      resourceId: params.data.containerId,
+      metadata: { serverId: server.id }
+    })
+    return { ok: true, output: output.trim() }
+  })
+
+  app.get('/:id/workloads/kubernetes/:namespace/:pod/logs', { preHandler: requireScope('workloads:read') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
+    const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
+    const query = workloadLogsQuerySchema.safeParse(request.query)
+    if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
+    const container = query.data.container ? ` -c ${shellQuote(query.data.container)}` : ''
+    const previous = query.data.previous ? ' --previous' : ''
+    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+      `logs -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)}${container}${previous} --timestamps --tail=${query.data.tail} | head -c 2097152`
+    ), 25_000))
+    reply.header('cache-control', 'no-store')
+    return { output, fetchedAt: new Date().toISOString() }
+  })
+
+  app.get('/:id/workloads/kubernetes/:namespace/:pod/describe', { preHandler: requireScope('workloads:read') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
+    const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
+    if (!params.success) return reply.code(400).send({ error: 'validation_error' })
+    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+      `describe pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)}`
+    ), 25_000))
+    return { output }
+  })
+
+  app.post('/:id/workloads/kubernetes/:namespace/:pod/action', { preHandler: requireScope('workloads:operate') }, async (request, reply) => {
+    const server = await parseServerRequest(request)
+    if (!server) return reply.code(404).send({ error: 'server_not_found' })
+    if (!server.entitlements.workloadActions) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadActions' })
+    const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
+    const input = podActionSchema.safeParse(request.body)
+    if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
+    const output = await withSsh(server, (connection) => connection.exec(kubectl(
+      `delete pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)} --wait=false`
+    ), 30_000))
+    await audit({
+      workspaceId: request.auth!.workspaceId,
+      actorUserId: request.auth!.userId,
+      action: 'workload.kubernetes_restart',
+      resourceType: 'kubernetes_pod',
+      resourceId: `${params.data.namespace}/${params.data.pod}`,
+      metadata: { serverId: server.id }
+    })
+    return { ok: true, output: output.trim() }
   })
 
   app.get('/:id/files', { preHandler: requireScope('sftp:use') }, async (request, reply) => {

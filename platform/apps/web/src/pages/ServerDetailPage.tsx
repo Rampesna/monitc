@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import {
   Activity,
   ArrowLeft,
@@ -16,16 +16,18 @@ import {
   ShieldCheck,
   TerminalSquare
 } from 'lucide-react'
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { AgentTelemetryLatest, DockerContainerMetric, PodResourceMetric, ServerSummary, SystemMetricPoint } from '@monitc/shared'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { api } from '../lib/api'
 import { bytes, millicores, rate, timeAgo } from '../lib/format'
 import { PageSkeleton } from '../components/Skeleton'
-import { WebTerminal } from '../components/WebTerminal'
-import { SftpBrowser } from '../components/SftpBrowser'
 import { SshFallbackModal } from '../components/SshFallbackModal'
+import { MetricChart } from '../components/MetricChart'
+import { WorkloadDrawer, type SelectedWorkload } from '../components/WorkloadDrawer'
 import { useAuth } from '../context'
+
+const WebTerminal = lazy(() => import('../components/WebTerminal').then((module) => ({ default: module.WebTerminal })))
+const SftpBrowser = lazy(() => import('../components/SftpBrowser').then((module) => ({ default: module.SftpBrowser })))
 
 type Tab = 'overview' | 'kubernetes' | 'terminal' | 'files'
 
@@ -47,6 +49,7 @@ export function ServerDetailPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [fallbackOpen, setFallbackOpen] = useState(false)
+  const [selectedWorkload, setSelectedWorkload] = useState<SelectedWorkload | null>(null)
   const liveRefreshMs = Math.max(250, workspace?.plan.entitlements.agentSampleIntervalMs || 1_000)
   const setTab = (nextTab: Tab) => {
     setTabState(nextTab)
@@ -145,10 +148,6 @@ export function ServerDetailPage() {
     ]).finally(() => setRefreshing(false))
   }
   const latest = liveSample || points.at(-1)
-  const chart = useMemo(() => points.map((point) => ({
-    ...point,
-    time: new Date(point.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  })), [points])
   if (loading) return <PageSkeleton />
   if (!server) return <div className="page-empty full"><Server size={28} /><h2>Server not found</h2><Link to="/servers">Back to servers</Link></div>
 
@@ -196,18 +195,8 @@ export function ServerDetailPage() {
           <section className="panel detail-chart-panel">
             <header className="panel-header"><div><h2>Resource history</h2><p>CPU and memory · last 6 hours</p></div><span className="live-pill"><i /> {server.connectionMode === 'agent' ? `${liveRefreshMs}ms live` : '30s'}</span></header>
             <div className="detail-chart">
-              {chart.length ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chart} margin={{ top: 16, right: 8, left: -24, bottom: 0 }}>
-                    <defs><linearGradient id="detailCpu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8b7cff" stopOpacity=".3" /><stop offset="1" stopColor="#8b7cff" stopOpacity="0" /></linearGradient></defs>
-                    <CartesianGrid stroke="#22222d" vertical={false} />
-                    <XAxis dataKey="time" stroke="#5b5b6d" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} minTickGap={42} />
-                    <YAxis domain={[0, 100]} stroke="#5b5b6d" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: '#111119', border: '1px solid #2b2b39', borderRadius: 10, fontSize: 11 }} />
-                    <Area type="monotone" dataKey="cpuPercent" stroke="#8b7cff" strokeWidth={2} fill="url(#detailCpu)" />
-                    <Area type="monotone" dataKey="memoryPercent" stroke="#48d5e5" strokeWidth={2} fill="transparent" />
-                  </AreaChart>
-                </ResponsiveContainer>
+              {points.length ? (
+                <MetricChart points={points} detailed />
               ) : <div className="empty-chart"><Activity size={22} /><p>Waiting for metric history.</p></div>}
             </div>
           </section>
@@ -219,15 +208,16 @@ export function ServerDetailPage() {
         </div>
       )}
 
-      {tab === 'kubernetes' && <KubernetesTable pods={pods} />}
-      {tab === 'terminal' && <WebTerminal serverId={serverId} />}
-      {tab === 'files' && <SftpBrowser serverId={serverId} />}
+      {tab === 'kubernetes' && <KubernetesTable pods={pods} onSelect={(pod) => setSelectedWorkload({ type: 'kubernetes', item: { ...pod, serverId, serverName: server.name } })} />}
+      {tab === 'terminal' && <Suspense fallback={<PageSkeleton />}><WebTerminal serverId={serverId} /></Suspense>}
+      {tab === 'files' && <Suspense fallback={<PageSkeleton />}><SftpBrowser serverId={serverId} /></Suspense>}
       <SshFallbackModal
         open={fallbackOpen}
         server={server}
         onClose={() => setFallbackOpen(false)}
         onUpdated={(updated) => setServer((current) => current ? { ...current, ...updated, agent: current.agent } : updated)}
       />
+      <WorkloadDrawer selected={selectedWorkload} onClose={() => setSelectedWorkload(null)} onChanged={() => void loadInventory()} />
     </div>
   )
 }
@@ -250,7 +240,7 @@ function ResourceCard({ icon: Icon, label, value, tone }: { icon: typeof Cpu; la
   )
 }
 
-function KubernetesTable({ pods }: { pods: PodResourceMetric[] }) {
+function KubernetesTable({ pods, onSelect }: { pods: PodResourceMetric[]; onSelect(pod: PodResourceMetric): void }) {
   const [query, setQuery] = useState('')
   const [namespace, setNamespace] = useState('all')
   const namespaces = [...new Set(pods.map((pod) => pod.namespace))].sort()
@@ -275,7 +265,7 @@ function KubernetesTable({ pods }: { pods: PodResourceMetric[] }) {
               const cpuAssigned = pod.cpuLimitMillicores || pod.cpuRequestMillicores
               const memoryAssigned = pod.memoryLimitBytes || pod.memoryRequestBytes
               return (
-                <tr key={`${pod.namespace}/${pod.name}`}>
+                <tr key={`${pod.namespace}/${pod.name}`} tabIndex={0} onClick={() => onSelect(pod)} onKeyDown={(event) => (event.key === 'Enter' || event.key === ' ') && onSelect(pod)}>
                   <td><span className="pod-icon"><Boxes size={15} /></span><span><strong>{pod.name}</strong><small>{pod.namespace} · {pod.node}</small></span></td>
                   <td><span className={`status-badge ${pod.phase.toLowerCase()}`}><i /> {pod.phase}</span><small className="ready-value">{pod.ready} ready · {pod.restarts} restarts</small></td>
                   <td><strong>{millicores(pod.cpuUsageMillicores)}</strong><small>/ {cpuAssigned ? millicores(cpuAssigned) : 'not assigned'}</small></td>

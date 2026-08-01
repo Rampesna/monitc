@@ -8,7 +8,7 @@ RUN npm run build
 
 FROM node:22.22-alpine AS application
 WORKDIR /build/platform
-ARG VITE_API_URL=https://monitc-api.talhacan.com
+ARG VITE_API_URL=https://monitc.talhacan.com
 ENV VITE_API_URL=$VITE_API_URL
 COPY platform/package.json platform/package-lock.json ./
 COPY platform/apps/api/package.json apps/api/package.json
@@ -21,7 +21,7 @@ RUN npm run build --workspace @monitc/shared \
     && npm run build --workspace @monitc/web
 
 FROM nginxinc/nginx-unprivileged:1.29-alpine
-ARG VITE_API_URL=https://monitc-api.talhacan.com
+ARG VITE_API_URL=https://monitc.talhacan.com
 COPY --chown=101:101 infra/docker/nginx-web.conf /tmp/default.conf
 RUN api_origin="${VITE_API_URL%/}" \
     && ws_origin="$(printf '%s' "$api_origin" | sed -e 's|^https:|wss:|' -e 's|^http:|ws:|')" \

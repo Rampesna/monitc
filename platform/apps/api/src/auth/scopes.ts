@@ -2,7 +2,7 @@ import type { GlobalRole, WorkspaceRole } from '@monitc/shared'
 
 const roleScopes: Record<WorkspaceRole, string[]> = {
   viewer: ['workspace:read', 'servers:read', 'metrics:read'],
-  operator: ['workspace:read', 'servers:read', 'servers:operate', 'metrics:read', 'terminal:use', 'sftp:use', 'alerts:manage'],
+  operator: ['workspace:read', 'servers:read', 'servers:operate', 'metrics:read', 'workloads:read', 'workloads:operate', 'terminal:use', 'sftp:use', 'alerts:manage'],
   admin: [
     'workspace:read',
     'workspace:manage',
@@ -10,6 +10,8 @@ const roleScopes: Record<WorkspaceRole, string[]> = {
     'servers:write',
     'servers:operate',
     'metrics:read',
+    'workloads:read',
+    'workloads:operate',
     'terminal:use',
     'sftp:use',
     'alerts:manage',
@@ -22,6 +24,8 @@ const roleScopes: Record<WorkspaceRole, string[]> = {
     'servers:write',
     'servers:operate',
     'metrics:read',
+    'workloads:read',
+    'workloads:operate',
     'terminal:use',
     'sftp:use',
     'alerts:manage',

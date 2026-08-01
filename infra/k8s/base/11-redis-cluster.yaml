@@ -56,11 +56,16 @@ spec:
           command: [sh, -ec]
           args:
             - |
+              pod_ip="$(hostname -i | awk '{print $1}')"
+              pod_hostname="$HOSTNAME.redis-headless.monitc.svc.cluster.local"
               exec redis-server \
                 --port 6379 \
                 --cluster-enabled yes \
                 --cluster-config-file /data/nodes.conf \
                 --cluster-node-timeout 5000 \
+                --cluster-announce-ip "$pod_ip" \
+                --cluster-announce-hostname "$pod_hostname" \
+                --cluster-preferred-endpoint-type hostname \
                 --appendonly yes \
                 --appendfsync everysec \
                 --protected-mode no \

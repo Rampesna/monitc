@@ -1,13 +1,15 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router'
 import { useAuth } from './context'
 import { AppShell } from './components/AppShell'
+import { AuthPage } from './pages/AuthPage'
+import { OverviewPage } from './pages/OverviewPage'
 
-const AuthPage = lazy(() => import('./pages/AuthPage').then((module) => ({ default: module.AuthPage })))
-const OverviewPage = lazy(() => import('./pages/OverviewPage').then((module) => ({ default: module.OverviewPage })))
-const ServersPage = lazy(() => import('./pages/ServersPage').then((module) => ({ default: module.ServersPage })))
+const loadServersPage = () => import('./pages/ServersPage').then((module) => ({ default: module.ServersPage }))
+const loadWorkloadsPage = () => import('./pages/WorkloadsPage').then((module) => ({ default: module.WorkloadsPage }))
+const ServersPage = lazy(loadServersPage)
 const ServerDetailPage = lazy(() => import('./pages/ServerDetailPage').then((module) => ({ default: module.ServerDetailPage })))
-const WorkloadsPage = lazy(() => import('./pages/WorkloadsPage').then((module) => ({ default: module.WorkloadsPage })))
+const WorkloadsPage = lazy(loadWorkloadsPage)
 const SessionsPage = lazy(() => import('./pages/SessionsPage').then((module) => ({ default: module.SessionsPage })))
 const AlertsPage = lazy(() => import('./pages/AlertsPage').then((module) => ({ default: module.AlertsPage })))
 const BillingPage = lazy(() => import('./pages/BillingPage').then((module) => ({ default: module.BillingPage })))
@@ -20,6 +22,12 @@ function RouteFallback() {
 function ProtectedShell() {
   const { ready, user } = useAuth()
   const location = useLocation()
+  useEffect(() => {
+    if (!user) return
+    const preload = () => void Promise.all([loadServersPage(), loadWorkloadsPage()])
+    const id = window.setTimeout(preload, 300)
+    return () => window.clearTimeout(id)
+  }, [user])
   if (!ready) return <div className="app-boot"><span className="logo-mark"><i /></span><div className="boot-line" /></div>
   if (!user) return <Navigate to="/login" replace />
   if (user.mustChangePassword && location.pathname !== '/settings') {
