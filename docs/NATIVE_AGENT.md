@@ -74,6 +74,14 @@ sent. The default 256 MiB cap evicts the oldest complete batch when necessary.
 Acknowledged batches are deleted only after PostgreSQL commits. Reconnect uses
 bounded exponential backoff with jitter.
 
+Sampling and delivery are both plan-aware. On every authenticated reconnect,
+the gateway resolves the workspace's current plan and sends fresh runtime
+intervals to the agent. Its delivery floor is 250 ms, so a Scale workspace can
+receive each 250 ms window immediately while slower plans naturally batch at
+their 500 ms, 1 s or 5 s sample interval. The browser polls only the lightweight
+latest-sample route at that cadence; inventory and historical rollups refresh on
+separate, slower loops to avoid overlapping full-dashboard requests.
+
 The gateway treats even an authenticated agent as untrusted input. It validates
 identity, boot UUID, sequence uniqueness, timestamps, sample intervals,
 floating-point ranges, inventory cardinality/string limits and enabled
@@ -101,6 +109,13 @@ The environment value and temporary token file are removed from the running
 agent flow after successful pairing. Avoid putting reusable credentials in
 automation logs; the pairing value is single-use but should still be treated as
 a secret until consumed.
+
+The agent intentionally does not expose an interactive shell or filesystem.
+When browser Terminal or Files is required, choose **Enable Terminal & Files**
+from the server menu or Hybrid access card. The browser seals the SSH credential
+with the workspace vault public key, the API verifies both SSH and SFTP, and the
+first successful connection pins the host fingerprint. Native telemetry remains
+on the outbound mTLS stream.
 
 ## Network requirement
 

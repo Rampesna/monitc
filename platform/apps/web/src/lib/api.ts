@@ -63,8 +63,8 @@ export async function api<T>(
     if (session) return api<T>(path, options, false)
   }
   if (!response.ok) {
-    const body = await response.json().catch(() => ({})) as { error?: string; message?: string }
-    throw new ApiError(response.status, body.error || 'request_failed', body.message || 'Request failed.')
+    const body = await response.json().catch(() => ({})) as { error?: string; code?: string; message?: string }
+    throw new ApiError(response.status, body.code || body.error || 'request_failed', body.message || 'Request failed.')
   }
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>

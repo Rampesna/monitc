@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowRight, MoreHorizontal, Plus, RadioTower, RefreshCw, Search, Server, ShieldCheck, Trash2 } from 'lucide-react'
+import { ArrowRight, KeyRound, MoreHorizontal, Plus, RadioTower, RefreshCw, Search, Server, ShieldCheck, Trash2 } from 'lucide-react'
 import type { ServerSummary } from '@monitc/shared'
 import { Link } from 'react-router'
 import { api } from '../lib/api'
 import { timeAgo } from '../lib/format'
 import { AddServerModal } from '../components/AddServerModal'
+import { SshFallbackModal } from '../components/SshFallbackModal'
 import { PageSkeleton } from '../components/Skeleton'
 
 export function ServersPage() {
@@ -15,6 +16,7 @@ export function ServersPage() {
   const [addOpen, setAddOpen] = useState(false)
   const [menu, setMenu] = useState<string | null>(null)
   const [pairTarget, setPairTarget] = useState<ServerSummary | null>(null)
+  const [fallbackTarget, setFallbackTarget] = useState<ServerSummary | null>(null)
 
   const load = async () => {
     const data = await api<{ servers: ServerSummary[] }>('/api/v1/servers')
@@ -53,7 +55,11 @@ export function ServersPage() {
               <span className={`server-card-icon ${server.status}`}><Server size={18} /></span>
               <div className="server-card-menu">
                 <button className="icon-button" onClick={() => setMenu(menu === server.id ? null : server.id)}><MoreHorizontal size={17} /></button>
-                {menu === server.id && <div className="context-menu">{server.connectionMode === 'agent' && !server.agent && <button className="pair-action" onClick={() => { setPairTarget(server); setAddOpen(true); setMenu(null) }}><RadioTower size={13} /> Pair native agent</button>}<button onClick={() => void remove(server)}><Trash2 size={13} /> Remove server</button></div>}
+                {menu === server.id && <div className="context-menu">
+                  {server.connectionMode === 'agent' && !server.agent && <button className="pair-action" onClick={() => { setPairTarget(server); setAddOpen(true); setMenu(null) }}><RadioTower size={13} /> Pair native agent</button>}
+                  {server.connectionMode === 'agent' && <button className="pair-action" onClick={() => { setFallbackTarget(server); setMenu(null) }}><KeyRound size={13} /> {server.sshFallbackConfigured ? 'Update SSH access' : 'Enable Terminal & Files'}</button>}
+                  <button onClick={() => void remove(server)}><Trash2 size={13} /> Remove server</button>
+                </div>}
               </div>
             </header>
             <div className="server-card-copy"><h2>{server.name}</h2><p>{server.connectionMode === 'agent' ? (server.agent ? `${server.agent.operatingSystem}/${server.agent.architecture} · agent ${server.agent.version}` : 'Waiting for native agent pairing') : server.username ? `${server.username}@${server.host}:${server.port}` : 'Sealed SSH connection'}</p></div>
@@ -61,7 +67,7 @@ export function ServersPage() {
               <span><i className={server.status} /> {server.status}</span>
               <span>{timeAgo(server.lastSeenAt)}</span>
             </div>
-            <div className="server-card-security"><ShieldCheck size={13} /> {server.connectionMode === 'agent' ? 'Outbound mTLS · no server secret' : 'Secret sealed · SSH'}</div>
+            <div className="server-card-security"><ShieldCheck size={13} /> {server.connectionMode === 'agent' ? (server.sshFallbackConfigured ? 'mTLS telemetry · SSH access ready' : 'Outbound mTLS · metrics only') : 'Secret sealed · SSH'}</div>
             <Link to={`/servers/${server.id}`}>Open workspace <ArrowRight size={14} /></Link>
           </article>
         ))}
@@ -69,6 +75,15 @@ export function ServersPage() {
       </section>
       {!visible.length && servers.length > 0 && <div className="page-empty"><Search size={24} /><h2>No matching servers</h2><p>Try another name or address.</p></div>}
       <AddServerModal open={addOpen} serverToPair={pairTarget} onClose={() => { setAddOpen(false); setPairTarget(null) }} onCreated={(server) => setServers((current) => [server, ...current])} />
+      <SshFallbackModal
+        open={Boolean(fallbackTarget)}
+        server={fallbackTarget}
+        onClose={() => setFallbackTarget(null)}
+        onUpdated={(updated) => {
+          setFallbackTarget(updated)
+          setServers((current) => current.map((server) => server.id === updated.id ? updated : server))
+        }}
+      />
     </div>
   )
 }

@@ -4,10 +4,11 @@ import { z } from 'zod'
 import { requireScope } from '../auth/guard.js'
 import { db } from '../db/pool.js'
 import { decryptField, encryptField } from '../lib/pii.js'
-import { decryptVaultSecret } from '../lib/vault.js'
+import { decryptVaultSecret, encryptVaultSecret } from '../lib/vault.js'
 import { audit } from '../services/audit.js'
 import { config } from '../config.js'
 import { resolveServerProvider } from '../providers/registry.js'
+import { SshConnection } from '../services/ssh-collector.js'
 
 const encryptedSecretSchema = z.object({
   keyId: z.string().min(1).max(100),
@@ -99,12 +100,12 @@ async function publicServer(row: ServerRow) {
 }
 
 function connectionErrorCode(error: unknown): string {
-  const message = error instanceof Error ? error.message : ''
-  if (message.includes('Authentication')) return 'SSH_AUTH_FAILED'
-  if (message.includes('fingerprint') || message.includes('Host denied')) return 'SSH_HOST_KEY_FAILED'
-  if (message.includes('TIMEOUT') || message.includes('timed out')) return 'SSH_TIMEOUT'
-  if (message.includes('PRIVATE_TARGET') || message.includes('TARGET_NOT_ALLOWED')) return 'TARGET_POLICY_BLOCKED'
-  if (message.includes('ECONNREFUSED')) return 'SSH_REFUSED'
+  const message = (error instanceof Error ? error.message : '').toLowerCase()
+  if (message.includes('authentication')) return 'SSH_AUTH_FAILED'
+  if (message.includes('fingerprint') || message.includes('host denied')) return 'SSH_HOST_KEY_FAILED'
+  if (message.includes('timeout') || message.includes('timed out')) return 'SSH_TIMEOUT'
+  if (message.includes('private_target') || message.includes('target_not_allowed')) return 'TARGET_POLICY_BLOCKED'
+  if (message.includes('econnrefused')) return 'SSH_REFUSED'
   return 'CONNECTION_FAILED'
 }
 
@@ -231,7 +232,11 @@ export async function serverRoutes(app: FastifyInstance): Promise<void> {
       actorUserId: request.auth.userId,
       action: 'server.updated',
       resourceType: 'server',
-      resourceId: id.data
+      resourceId: id.data,
+      metadata: {
+        nameChanged: Boolean(input.data.name),
+        sshFallbackConfigured: Boolean(input.data.encryptedSecret)
+      }
     })
     return publicServer(result.rows[0])
   })
@@ -253,6 +258,61 @@ export async function serverRoutes(app: FastifyInstance): Promise<void> {
       resourceId: id.data
     })
     return reply.code(204).send()
+  })
+
+  app.post('/:id/ssh/test', { preHandler: requireScope('servers:operate') }, async (request, reply) => {
+    if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
+    const id = idSchema.safeParse((request.params as { id?: string }).id)
+    if (!id.success) return reply.code(400).send({ error: 'validation_error' })
+    const result = await db.query<ServerRow>(
+      `SELECT id, name_ciphertext, connection_mode, secret_ciphertext, secret_key_id, status, last_seen_at, created_at
+       FROM server_connections WHERE id = $1 AND workspace_id = $2`,
+      [id.data, request.auth.workspaceId]
+    )
+    const row = result.rows[0]
+    if (!row) return reply.code(404).send({ error: 'server_not_found' })
+    if (!row.secret_ciphertext || !row.secret_key_id) {
+      return reply.code(409).send({ error: 'ssh_fallback_not_configured' })
+    }
+
+    try {
+      const secret = await decryptVaultSecret(row.secret_ciphertext, row.secret_key_id)
+      const connection = await SshConnection.connect(secret)
+      let fingerprint = ''
+      try {
+        fingerprint = await connection.fingerprint
+        await connection.sftp()
+      } finally {
+        connection.close()
+      }
+      const rotatedSecretCiphertext = secret.hostFingerprint
+        ? null
+        : await encryptVaultSecret({ ...secret, hostFingerprint: fingerprint })
+      await db.query(
+        `UPDATE server_connections SET
+           secret_ciphertext = COALESCE($1, secret_ciphertext),
+           last_error_code = NULL, last_error_at = NULL, updated_at = now()
+         WHERE id = $2 AND workspace_id = $3`,
+        [rotatedSecretCiphertext, row.id, request.auth.workspaceId]
+      )
+      await audit({
+        workspaceId: request.auth.workspaceId,
+        actorUserId: request.auth.userId,
+        action: 'server.ssh_fallback_verified',
+        resourceType: 'server',
+        resourceId: row.id
+      })
+      return { ok: true, fingerprint, sftp: true }
+    } catch (error) {
+      const code = connectionErrorCode(error)
+      request.log.warn({ serverId: row.id, code }, 'SSH fallback verification failed')
+      await db.query(
+        `UPDATE server_connections SET last_error_code = $1, last_error_at = now(), updated_at = now()
+         WHERE id = $2 AND workspace_id = $3`,
+        [code, row.id, request.auth.workspaceId]
+      )
+      return reply.code(422).send({ error: 'connection_failed', code })
+    }
   })
 
   app.post('/:id/test', { preHandler: requireScope('servers:operate') }, async (request, reply) => {

@@ -129,6 +129,12 @@ not a zero-knowledge design: an authorized worker can decrypt that selected cred
 Database theft alone does not reveal it, but loss of the vault key and database together would.
 Keep vault, PII, JWT and agent-CA keys outside PostgreSQL and back them up separately.
 
+For hybrid access, open an agent server and choose **Enable Terminal & Files**. The credential is
+sealed in the browser, SSH and SFTP are verified independently from agent health, and the observed
+host key is pinned after the first successful connection. Live host cards follow the plan's native
+sample interval; Kubernetes/Docker inventory and historical charts use slower independent refresh
+loops so they never block the live values.
+
 See [SECURITY.md](SECURITY.md) for boundaries, key handling, dependency notes and operational
 requirements. The native protocol, provider boundary and operational model are documented in
 [docs/NATIVE_AGENT.md](docs/NATIVE_AGENT.md).
