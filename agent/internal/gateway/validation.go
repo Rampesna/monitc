@@ -17,6 +17,7 @@ const (
 	maximumInventoryPerBatch   = 5000
 	maximumMetricClockSkew     = 5 * time.Minute
 	maximumOfflineSampleAge    = 30 * 24 * time.Hour
+	maximumEBPFEventClockLead  = time.Second
 	maximumInventoryFieldBytes = 1024
 	maximumAgentCapabilities   = 16
 )
@@ -160,9 +161,14 @@ func validateMetricBatch(record AgentRecord, batch *agentv1.MetricBatch, now tim
 			if ebpf.GetActive() && !hasCapability(record, agentv1.Capability_CAPABILITY_EBPF) {
 				return errors.New("eBPF telemetry capability is not enabled")
 			}
+			lastEvent, windowEnd := ebpf.GetLastEventMonotonicNanos(), ebpf.GetWindowEndMonotonicNanos()
+			eventClockLead := uint64(0)
+			if lastEvent > windowEnd {
+				eventClockLead = lastEvent - windowEnd
+			}
 			if !validOptionalField(ebpf.GetUnavailableReason()) ||
-				ebpf.GetWindowEndMonotonicNanos() < ebpf.GetWindowStartMonotonicNanos() ||
-				ebpf.GetLastEventMonotonicNanos() > ebpf.GetWindowEndMonotonicNanos() {
+				windowEnd < ebpf.GetWindowStartMonotonicNanos() ||
+				eventClockLead > uint64(maximumEBPFEventClockLead.Nanoseconds()) {
 				return errors.New("eBPF aggregate is invalid")
 			}
 		}

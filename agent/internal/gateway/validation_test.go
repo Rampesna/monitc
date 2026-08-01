@@ -116,6 +116,40 @@ func TestDockerCPUAllowsMultiCorePercentages(t *testing.T) {
 	}
 }
 
+func TestValidateMetricBatchAllowsBoundedEBPFReadRace(t *testing.T) {
+	t.Parallel()
+	now := time.Now().UTC()
+	record := AgentRecord{
+		AgentID: "11111111-2222-4333-8444-555555555555",
+		EnabledCapabilities: []agentv1.Capability{
+			agentv1.Capability_CAPABILITY_HOST_METRICS,
+			agentv1.Capability_CAPABILITY_EBPF,
+		},
+	}
+	batch := &agentv1.MetricBatch{
+		AgentId: record.AgentID,
+		BootId:  "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+		Samples: []*agentv1.SystemMetricSample{{
+			Sequence: 1, SampledAtUnixNanos: now.UnixNano(),
+			SampleIntervalNanos: uint64(time.Second),
+			Ebpf: &agentv1.EbpfAggregate{
+				Active: true, WindowStartMonotonicNanos: uint64(time.Second),
+				WindowEndMonotonicNanos: uint64(2 * time.Second),
+				LastEventMonotonicNanos: uint64(2500 * time.Millisecond),
+			},
+		}},
+	}
+	if err := validateMetricBatch(record, batch, now); err != nil {
+		t.Fatalf("bounded eBPF snapshot race was rejected: %v", err)
+	}
+
+	invalid := cloneMetricBatch(batch)
+	invalid.Samples[0].Ebpf.LastEventMonotonicNanos = uint64(4 * time.Second)
+	if err := validateMetricBatch(record, invalid, now); err == nil {
+		t.Fatal("an excessive eBPF event clock lead should be rejected")
+	}
+}
+
 func cloneMetricBatch(source *agentv1.MetricBatch) *agentv1.MetricBatch {
 	return proto.Clone(source).(*agentv1.MetricBatch)
 }

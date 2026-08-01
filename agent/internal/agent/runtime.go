@@ -102,10 +102,19 @@ func (r *Runtime) Run(ctx context.Context) error {
 	if runtime.GOOS != "linux" {
 		return telemetry.ErrUnsupported
 	}
-	if !r.identity.IsPaired() {
+	for attempt := 1; !r.identity.IsPaired() && ctx.Err() == nil; attempt++ {
 		if err := r.pair(ctx); err != nil {
-			return err
+			delay := reconnectDelay(attempt)
+			r.logger.Warn("agent pairing delayed", "retry_in", delay.String(), "code", safeGRPCCode(err))
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(delay):
+			}
 		}
+	}
+	if ctx.Err() != nil {
+		return nil
 	}
 	if r.identity.NeedsRotation(time.Now()) {
 		if err := r.rotateCertificate(ctx); err != nil {
@@ -320,6 +329,15 @@ func (r *Runtime) connect(ctx context.Context) error {
 			if errors.Is(err, io.EOF) {
 				return nil
 			}
+			if awaiting != nil && isPermanentMetricBatchRejection(err) {
+				quarantined, quarantineErr := r.spool.Quarantine(*awaiting)
+				if quarantineErr != nil {
+					return fmt.Errorf("quarantine permanently rejected metric batch: %w", quarantineErr)
+				}
+				r.logger.Error("metric batch permanently rejected and quarantined",
+					"boot_id", awaiting.BootID, "first_sequence", awaiting.FirstSequence,
+					"last_sequence", awaiting.LastSequence, "path", quarantined)
+			}
 			return err
 		case response := <-responses:
 			switch payload := response.GetPayload().(type) {
@@ -360,6 +378,11 @@ func (r *Runtime) connect(ctx context.Context) error {
 		case <-pollTicker.C:
 		}
 	}
+}
+
+func isPermanentMetricBatchRejection(err error) bool {
+	streamStatus, ok := status.FromError(err)
+	return ok && streamStatus.Code() == codes.InvalidArgument && streamStatus.Message() == "metric batch failed validation"
 }
 
 func (r *Runtime) newConnection(withClientIdentity bool) (*grpc.ClientConn, error) {

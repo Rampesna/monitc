@@ -106,8 +106,16 @@ a secret until consumed.
 
 `monitc-agent.talhacan.com:443` must be a raw TCP/TLS passthrough to host port
 `9130`. A normal HTTP reverse proxy must not terminate the client
-certificate. Agents need outbound TCP 443 only; no inbound agent port or SSH
-credential is required for telemetry.
+certificate. The hosted installer verifies this route before changing the
+machine. While the managed DNS/TCP route is unavailable, it can use the
+CA-verified direct endpoint `45.131.1.244:9130` with the same TLS server name;
+once DNS is live it automatically prefers outbound TCP 443. No inbound port or
+SSH credential is required on the monitored machine.
+
+A permanently rejected protobuf batch is moved out of the live queue into a
+bounded local diagnostic quarantine. Newer telemetry can therefore continue
+without silently deleting the rejected payload or allowing one poison batch to
+block the agent forever.
 
 ## Capability boundary
 

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"os"
 	"testing"
 
 	agentv1 "github.com/Rampesna/monitc/agent/gen/monitc/agent/v1"
@@ -52,6 +53,33 @@ func TestSpoolPersistsEvictsAndAcknowledgesBatches(t *testing.T) {
 	}
 	if batches != 0 {
 		t.Fatalf("expected an empty spool after acknowledgement, got %d batches", batches)
+	}
+}
+
+func TestSpoolQuarantinesRejectedBatchOutsideSendQueue(t *testing.T) {
+	t.Parallel()
+	spool, err := NewSpool(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootID := "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+	if err := spool.Put(testBatch(bootID, 1)); err != nil {
+		t.Fatal(err)
+	}
+	items, err := spool.Items()
+	if err != nil || len(items) != 1 {
+		t.Fatalf("expected one queued batch, got %d (error: %v)", len(items), err)
+	}
+	quarantined, err := spool.Quarantine(items[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(quarantined); err != nil {
+		t.Fatalf("quarantined batch is missing: %v", err)
+	}
+	items, err = spool.Items()
+	if err != nil || len(items) != 0 {
+		t.Fatalf("rejected batch remained in the send queue: %v", err)
 	}
 }
 

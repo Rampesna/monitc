@@ -95,6 +95,9 @@ The browser surfaces use three HTTP hosts. Native agents use one additional raw 
 Enable WebSocket proxying on the API host, force HTTPS, and preserve the `/updates` path on the
 main host. The agent endpoint is not an HTTP reverse proxy: configure raw TCP/TLS passthrough with
 SNI preserved, or point the DNS record directly at a firewall-restricted listener on port `9130`.
+Until the managed `:443` route resolves, the hosted installer verifies and uses
+`45.131.1.244:9130` while retaining `monitc-agent.talhacan.com` as the TLS server name. Custom and
+self-hosted gateways never fall back unless their operator explicitly configures an address.
 
 ## Security model
 
@@ -258,9 +261,9 @@ consistency, builds each OS package, requires signed/notarized macOS output, ver
 metadata, publishes the GitHub release and synchronizes the update feed over pinned SSH.
 
 ```bash
-npm run release:verify -- v1.5.0
-git tag -a v1.5.0 -m "monitc v1.5.0"
-git push origin v1.5.0
+npm run release:verify -- v1.5.1
+git tag -a v1.5.1 -m "monitc v1.5.1"
+git push origin v1.5.1
 ```
 
 Required release and deployment secrets are documented in

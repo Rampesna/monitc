@@ -31,6 +31,10 @@ const updateServerSchema = z.object({
 
 const idSchema = z.uuid()
 
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`
+}
+
 interface ServerRow {
   id: string
   name_ciphertext: string
@@ -351,7 +355,9 @@ export async function serverRoutes(app: FastifyInstance): Promise<void> {
       gatewayAddress: config.AGENT_GATEWAY_PUBLIC_ADDRESS,
       gatewayServerName: config.AGENT_GATEWAY_SERVER_NAME,
       bootstrapCAUrl: `${config.API_ORIGIN}/api/v1/agent/bootstrap-ca`,
-      installCommand: `curl -fsSL ${config.AGENT_INSTALL_URL} | sudo bash`
+      installCommand: `curl -fsSL ${shellQuote(config.AGENT_INSTALL_URL)} | sudo env ` +
+        `MONITC_AGENT_GATEWAY=${shellQuote(config.AGENT_GATEWAY_PUBLIC_ADDRESS)} ` +
+        `MONITC_AGENT_SERVER_NAME=${shellQuote(config.AGENT_GATEWAY_SERVER_NAME)} bash`
     })
   })
 }

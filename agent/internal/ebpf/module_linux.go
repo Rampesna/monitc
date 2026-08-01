@@ -116,7 +116,6 @@ func newCounterProgram(name string, counters, lastEvent *cebpf.Map, key uint32) 
 func (m *linuxModule) Snapshot() Snapshot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	now := monotonicNanos()
 	var scheduler, retransmits, last uint64
 	if err := m.counters.Lookup(schedulerCounter, &scheduler); err != nil {
 		return Snapshot{UnavailableReason: "eBPF counter read failed"}
@@ -125,6 +124,13 @@ func (m *linuxModule) Snapshot() Snapshot {
 		return Snapshot{UnavailableReason: "eBPF counter read failed"}
 	}
 	_ = m.lastEvent.Lookup(uint32(0), &last)
+	// Read the window end after the kernel maps. A tracepoint can update the
+	// last-event map while userspace is taking the snapshot; reading the clock
+	// first would occasionally make a valid event appear to be in the future.
+	now := monotonicNanos()
+	if now == 0 {
+		return Snapshot{UnavailableReason: "monotonic clock read failed"}
+	}
 	snapshot := Snapshot{
 		Active:                    true,
 		WindowStartMonotonicNanos: m.previousWindow,
