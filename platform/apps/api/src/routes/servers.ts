@@ -151,7 +151,7 @@ export async function serverRoutes(app: FastifyInstance): Promise<void> {
            COALESCE((p.entitlements->>'agentMode')::boolean, false) AS agent_mode
          FROM subscriptions s
          JOIN plans p ON p.code = s.plan_code
-         WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing')
+         WHERE s.workspace_id = $1 AND s.status IN ('active', 'trialing', 'grace_period')
          LIMIT 1`,
         [request.auth.workspaceId]
       )

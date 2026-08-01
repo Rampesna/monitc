@@ -1,6 +1,27 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
+import { config } from '../config.js'
+import { redis } from '../lib/redis.js'
 import { verifyAccessToken } from '../lib/tokens.js'
 import type { GlobalRole, WorkspaceRole } from '@monitc/shared'
+
+const revocationCache = new Map<string, { revoked: boolean; expiresAt: number }>()
+
+async function accessIsRevoked(userId: string): Promise<boolean> {
+  const cached = revocationCache.get(userId)
+  if (cached && cached.expiresAt > Date.now()) return cached.revoked
+  const revoked = Boolean(await redis.get(`access-revoked-user:${userId}`))
+  if (revocationCache.size > 10_000) revocationCache.clear()
+  revocationCache.set(userId, {
+    revoked,
+    expiresAt: Date.now() + (revoked ? 60_000 : 5_000)
+  })
+  return revoked
+}
+
+export async function revokeAccessForUser(userId: string): Promise<void> {
+  revocationCache.set(userId, { revoked: true, expiresAt: Date.now() + 60_000 })
+  await redis.set(`access-revoked-user:${userId}`, '1', 'EX', config.ACCESS_TOKEN_TTL_SECONDS + 10)
+}
 
 export async function authenticate(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   const header = request.headers.authorization
@@ -11,6 +32,7 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 
   try {
     const claims = await verifyAccessToken(header.slice(7))
+    if (!claims.sub || await accessIsRevoked(claims.sub)) throw new Error('Access token revoked')
     request.auth = {
       claims,
       userId: claims.sub || '',

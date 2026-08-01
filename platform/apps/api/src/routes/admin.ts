@@ -30,7 +30,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           (SELECT count(*)::int FROM users WHERE disabled_at IS NULL) AS users,
           (SELECT count(*)::int FROM workspaces) AS workspaces,
           (SELECT count(*)::int FROM server_connections) AS servers,
-          (SELECT count(*)::int FROM subscriptions WHERE status IN ('active', 'trialing')) AS active_subscriptions
+          (SELECT count(*)::int FROM subscriptions WHERE status IN ('active', 'trialing', 'grace_period')) AS active_subscriptions
       `),
       db.query<{ status: string; count: number }>(
         'SELECT status, count(*)::int AS count FROM server_connections GROUP BY status'
@@ -76,7 +76,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           WHERE wm.workspace_id = w.id AND wm.role = 'owner' ORDER BY wm.created_at LIMIT 1) AS owner_email_ciphertext,
         w.created_at
        FROM workspaces w
-       LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing')
+       LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing', 'grace_period')
        ORDER BY w.created_at DESC LIMIT 500`
     )
     const needle = query.q.trim().toLocaleLowerCase('en-US')

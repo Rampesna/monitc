@@ -4,7 +4,7 @@ import type { AuthSession, GlobalRole, PlanDefinition, PublicUser, WorkspaceRole
 import { PLANS } from '@monitc/shared'
 import { config } from '../config.js'
 import { db } from '../db/pool.js'
-import { decryptField } from '../lib/pii.js'
+import { decryptField, encryptField } from '../lib/pii.js'
 import { hashMetadata, hashRefreshToken, issueAccessToken, newRefreshToken } from '../lib/tokens.js'
 import { scopesFor } from './scopes.js'
 
@@ -32,6 +32,13 @@ interface EncryptedSessionSubjectRow {
   workspace_slug: string
   workspace_role: WorkspaceRole
   plan_code: string
+}
+
+export type SessionClientType = 'web' | 'ios' | 'android' | 'desktop' | 'api'
+
+export interface SessionClientOptions {
+  clientType?: SessionClientType
+  deviceName?: string
 }
 
 function planByCode(code: string): PlanDefinition {
@@ -66,7 +73,7 @@ export async function loadSessionSubject(userId: string, workspaceId?: string): 
      FROM users u
      JOIN workspace_members wm ON wm.user_id = u.id
      JOIN workspaces w ON w.id = wm.workspace_id
-     LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing')
+     LEFT JOIN subscriptions s ON s.workspace_id = w.id AND s.status IN ('active', 'trialing', 'grace_period')
      WHERE u.id = $1 AND u.disabled_at IS NULL
        AND ($2::uuid IS NULL OR w.id = $2)
      ORDER BY wm.created_at ASC
@@ -99,6 +106,7 @@ function requestMetadata(request: FastifyRequest): { userAgentHash: string; ipHa
 export async function createSession(
   row: SessionSubjectRow,
   request: FastifyRequest,
+  options: SessionClientOptions = {},
   familyId = randomUUID()
 ): Promise<AuthSession & { refreshToken: string }> {
   const { user, workspace } = mapSubject(row)
@@ -116,9 +124,20 @@ export async function createSession(
 
   await db.query(
     `INSERT INTO refresh_sessions
-       (family_id, user_id, workspace_id, token_hash, user_agent_hash, ip_hash, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-    [familyId, user.id, workspace.id, refresh.hash, metadata.userAgentHash, metadata.ipHash, expiresAt]
+       (family_id, user_id, workspace_id, token_hash, user_agent_hash, ip_hash, expires_at,
+        client_type, device_name_ciphertext)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [
+      familyId,
+      user.id,
+      workspace.id,
+      refresh.hash,
+      metadata.userAgentHash,
+      metadata.ipHash,
+      expiresAt,
+      options.clientType || 'web',
+      options.deviceName ? encryptField(options.deviceName, 'session.deviceName') : null
+    ]
   )
 
   return {
@@ -146,6 +165,8 @@ export async function rotateSession(
       expires_at: Date
       rotated_at: Date | null
       revoked_at: Date | null
+      client_type: SessionClientType
+      device_name_ciphertext: string | null
     }>('SELECT * FROM refresh_sessions WHERE token_hash = $1 FOR UPDATE', [tokenHash])
     const current = sessionResult.rows[0]
     if (!current) {
@@ -188,8 +209,9 @@ export async function rotateSession(
 
     await client.query(
       `INSERT INTO refresh_sessions
-        (id, family_id, user_id, workspace_id, token_hash, user_agent_hash, ip_hash, expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        (id, family_id, user_id, workspace_id, token_hash, user_agent_hash, ip_hash, expires_at,
+         client_type, device_name_ciphertext)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         nextId,
         current.family_id,
@@ -198,7 +220,9 @@ export async function rotateSession(
         nextRefresh.hash,
         metadata.userAgentHash,
         metadata.ipHash,
-        expiresAt
+        expiresAt,
+        current.client_type,
+        current.device_name_ciphertext
       ]
     )
     await client.query(

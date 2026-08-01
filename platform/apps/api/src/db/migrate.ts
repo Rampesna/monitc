@@ -347,6 +347,165 @@ const migrations: Migration[] = [
     sql: `
       ALTER TABLE agent_identities ADD COLUMN IF NOT EXISTS connection_id UUID;
     `
+  },
+  {
+    id: 4,
+    name: 'mobile-auth-and-multi-provider-billing',
+    sql: `
+      ALTER TABLE refresh_sessions
+        ADD COLUMN IF NOT EXISTS client_type TEXT NOT NULL DEFAULT 'web';
+      ALTER TABLE refresh_sessions
+        ADD COLUMN IF NOT EXISTS device_name_ciphertext TEXT;
+      ALTER TABLE refresh_sessions DROP CONSTRAINT IF EXISTS refresh_sessions_client_type_check;
+      ALTER TABLE refresh_sessions ADD CONSTRAINT refresh_sessions_client_type_check
+        CHECK (client_type IN ('web', 'ios', 'android', 'desktop', 'api'));
+
+      CREATE TABLE IF NOT EXISTS auth_identities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL CHECK (provider IN ('apple', 'google')),
+        subject_lookup_hash TEXT NOT NULL,
+        email_ciphertext TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_used_at TIMESTAMPTZ,
+        UNIQUE (provider, subject_lookup_hash)
+      );
+      CREATE INDEX IF NOT EXISTS auth_identities_user_idx
+        ON auth_identities (user_id, provider);
+      CREATE UNIQUE INDEX IF NOT EXISTS auth_identities_user_provider_unique
+        ON auth_identities (user_id, provider);
+
+      CREATE TABLE IF NOT EXISTS passkey_credentials (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        credential_id_ciphertext TEXT NOT NULL,
+        credential_id_lookup_hash TEXT NOT NULL UNIQUE,
+        public_key BYTEA NOT NULL,
+        counter BIGINT NOT NULL DEFAULT 0 CHECK (counter >= 0),
+        transports JSONB NOT NULL DEFAULT '[]'::jsonb,
+        device_type TEXT NOT NULL DEFAULT 'singleDevice',
+        backed_up BOOLEAN NOT NULL DEFAULT false,
+        label_ciphertext TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_used_at TIMESTAMPTZ
+      );
+      CREATE INDEX IF NOT EXISTS passkey_credentials_user_idx
+        ON passkey_credentials (user_id, created_at DESC);
+
+      ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_status_check;
+      ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_status_check
+        CHECK (status IN ('active', 'trialing', 'grace_period', 'billing_retry', 'past_due', 'cancelled', 'expired', 'revoked'));
+      ALTER TABLE subscriptions
+        ADD COLUMN IF NOT EXISTS billing_provider TEXT NOT NULL DEFAULT 'manual';
+      ALTER TABLE subscriptions
+        ADD COLUMN IF NOT EXISTS billing_period TEXT;
+      ALTER TABLE subscriptions
+        ADD COLUMN IF NOT EXISTS external_entitlement_hash TEXT;
+      ALTER TABLE subscriptions
+        ADD COLUMN IF NOT EXISTS auto_renews BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_billing_provider_check;
+      ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_billing_provider_check
+        CHECK (billing_provider IN ('apple', 'google_play', 'manual', 'stripe', 'other'));
+      ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_billing_period_check;
+      ALTER TABLE subscriptions ADD CONSTRAINT subscriptions_billing_period_check
+        CHECK (billing_period IS NULL OR billing_period IN ('monthly', 'annual', 'custom'));
+      CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_external_entitlement_unique
+        ON subscriptions (billing_provider, external_entitlement_hash)
+        WHERE external_entitlement_hash IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS billing_products (
+        provider TEXT NOT NULL CHECK (provider IN ('apple', 'google_play', 'manual', 'stripe', 'other')),
+        product_id TEXT NOT NULL,
+        product_kind TEXT NOT NULL CHECK (product_kind IN ('hosted_plan', 'self_hosted_mobile')),
+        plan_code TEXT REFERENCES plans(code),
+        billing_period TEXT NOT NULL CHECK (billing_period IN ('monthly', 'annual')),
+        price_cents INTEGER NOT NULL CHECK (price_cents >= 0),
+        currency TEXT NOT NULL DEFAULT 'USD',
+        active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (provider, product_id),
+        CHECK ((product_kind = 'hosted_plan' AND plan_code IS NOT NULL) OR
+               (product_kind = 'self_hosted_mobile' AND plan_code IS NULL))
+      );
+
+      INSERT INTO billing_products
+        (provider, product_id, product_kind, plan_code, billing_period, price_cents)
+      VALUES
+        ('apple', 'com.monitc.mobile.solo.monthly', 'hosted_plan', 'solo', 'monthly', 1200),
+        ('apple', 'com.monitc.mobile.solo.annual', 'hosted_plan', 'solo', 'annual', 12000),
+        ('apple', 'com.monitc.mobile.team.monthly', 'hosted_plan', 'team', 'monthly', 3900),
+        ('apple', 'com.monitc.mobile.team.annual', 'hosted_plan', 'team', 'annual', 39000),
+        ('apple', 'com.monitc.mobile.selfhosted.monthly', 'self_hosted_mobile', NULL, 'monthly', 2000),
+        ('apple', 'com.monitc.mobile.selfhosted.annual', 'self_hosted_mobile', NULL, 'annual', 20000),
+        ('google_play', 'monitc_solo_monthly', 'hosted_plan', 'solo', 'monthly', 1200),
+        ('google_play', 'monitc_solo_annual', 'hosted_plan', 'solo', 'annual', 12000),
+        ('google_play', 'monitc_team_monthly', 'hosted_plan', 'team', 'monthly', 3900),
+        ('google_play', 'monitc_team_annual', 'hosted_plan', 'team', 'annual', 39000),
+        ('google_play', 'monitc_selfhosted_monthly', 'self_hosted_mobile', NULL, 'monthly', 2000),
+        ('google_play', 'monitc_selfhosted_annual', 'self_hosted_mobile', NULL, 'annual', 20000)
+      ON CONFLICT (provider, product_id) DO UPDATE SET
+        product_kind = EXCLUDED.product_kind,
+        plan_code = EXCLUDED.plan_code,
+        billing_period = EXCLUDED.billing_period,
+        price_cents = EXCLUDED.price_cents,
+        currency = EXCLUDED.currency,
+        active = true,
+        updated_at = now();
+
+      CREATE TABLE IF NOT EXISTS billing_transactions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL CHECK (provider IN ('apple', 'google_play', 'manual', 'stripe', 'other')),
+        environment TEXT NOT NULL CHECK (environment IN ('sandbox', 'production', 'local')),
+        transaction_lookup_hash TEXT NOT NULL,
+        original_transaction_lookup_hash TEXT,
+        product_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'grace_period', 'billing_retry', 'expired', 'revoked', 'refunded')),
+        auto_renews BOOLEAN NOT NULL DEFAULT false,
+        purchased_at TIMESTAMPTZ,
+        expires_at TIMESTAMPTZ,
+        revoked_at TIMESTAMPTZ,
+        signed_payload_ciphertext TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (provider, environment, transaction_lookup_hash)
+      );
+      CREATE INDEX IF NOT EXISTS billing_transactions_workspace_idx
+        ON billing_transactions (workspace_id, status, expires_at DESC);
+      CREATE INDEX IF NOT EXISTS billing_transactions_original_idx
+        ON billing_transactions (provider, original_transaction_lookup_hash)
+        WHERE original_transaction_lookup_hash IS NOT NULL;
+
+      CREATE TABLE IF NOT EXISTS billing_webhook_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        provider TEXT NOT NULL CHECK (provider IN ('apple', 'google_play', 'stripe', 'other')),
+        event_lookup_hash TEXT NOT NULL,
+        payload_ciphertext TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received', 'processed', 'ignored', 'failed')),
+        error_code TEXT,
+        received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        processed_at TIMESTAMPTZ,
+        UNIQUE (provider, event_lookup_hash)
+      );
+
+      CREATE TABLE IF NOT EXISTS mobile_licenses (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL CHECK (provider IN ('apple', 'google_play', 'manual', 'stripe', 'other')),
+        source_transaction_id UUID REFERENCES billing_transactions(id) ON DELETE SET NULL,
+        status TEXT NOT NULL CHECK (status IN ('active', 'grace_period', 'billing_retry', 'expired', 'revoked')),
+        max_instances INTEGER NOT NULL DEFAULT 5 CHECK (max_instances > 0),
+        current_period_ends_at TIMESTAMPTZ,
+        auto_renews BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS mobile_licenses_workspace_idx
+        ON mobile_licenses (workspace_id, status);
+    `
   }
 ]
 

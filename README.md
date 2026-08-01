@@ -42,6 +42,12 @@ operator console.
   rates in the web workload fleet.
 - Package- and RBAC-gated Docker/Kubernetes logs, inspection and audited restart/start/stop
   operations in the web app, with focused workload drawers and fleet search.
+- A native iOS companion with Cloud/self-hosted switching, server dashboards, alerts,
+  Kubernetes/Docker telemetry, plan-gated logs and safe workload actions.
+- Mobile authentication with rotating sessions, Sign in with Apple, Google identity verification
+  and phishing-resistant passkeys.
+- Provider-neutral mobile billing records with verified StoreKit 2 transactions, App Store Server
+  Notifications V2 and room for future Google Play or direct providers.
 - Docker and Kubernetes inventory and operations in the desktop client.
 - Browser and desktop SSH terminals.
 - SFTP navigation, editor, upload/download, create, copy, cut, paste, move and recursive delete.
@@ -57,6 +63,7 @@ operator console.
 flowchart LR
   D["Desktop app"] --> S["Customer servers over SSH"]
   B["Web app /app"] --> A["Fastify API"]
+  I["Native iOS app"] --> A
   C["Operator console"] --> A
   G["Go native agent"] -->|"outbound gRPC + mTLS"| AG["Agent gateway"]
   AG --> P
@@ -117,6 +124,12 @@ monitc does not store SSH credentials or personal fields as plaintext:
 - access tokens are short-lived Ed25519 JWTs with strict `alg`, `typ`, issuer and audience checks;
 - refresh tokens are opaque, one-time rotating, hashed in PostgreSQL and protected by replay-family
   revocation;
+- Apple and Google identity tokens are verified against provider keys, nonces are replay-protected,
+  and an existing account is never silently linked only because an email address matches;
+- passkey challenges are short-lived and single-use, while credential identifiers, labels and
+  device metadata are encrypted or blind-indexed as appropriate;
+- App Store transactions and server notifications are verified with Apple's signed-data chain;
+  external transaction identifiers are blind-indexed and signed payloads are encrypted;
 - browser access tokens stay in memory; refresh tokens use a host-only `HttpOnly`, `Secure`,
   `SameSite=Strict` cookie;
 - workspace RBAC and plan entitlements are enforced by the API, not only by the UI;
@@ -152,9 +165,37 @@ requirements. The native protocol, provider boundary and operational model are d
 | Team | 25 | 5 | 90 days | 15 s | 500 ms | Workload operations, RBAC, audit log and priority support |
 | Scale | Custom | Custom | 365 days | 10 s | 250 ms | Full operations, custom limits, onboarding and SLA |
 
-There is intentionally no payment provider in this release. Selecting a paid plan creates a
-contact request; a platform administrator can review it and assign the plan manually from the
-private operator console.
+Web plan requests remain a personal onboarding flow: selecting a paid plan creates a contact
+request that an operator can review and assign from the private console. The iOS client uses Apple
+in-app subscriptions for Solo and Team. Annual products cost ten monthly payments, providing two
+months free. **Self-hosted Mobile** is a separate `$20/month` or `$200/year` entitlement for up to
+five customer-operated Monitc instances. Scale stays a manually assigned custom plan.
+
+Billing storage is provider-neutral (`apple`, `google_play`, and future providers) so a
+later Android client can reconcile purchases without changing workspace or entitlement models.
+
+## Mobile API and identity configuration
+
+The iOS API is grouped under `/api/v1/mobile`:
+
+- `/auth/register`, `/auth/login`, `/auth/refresh` and `/auth/logout` issue mobile refresh tokens in
+  the response body for Keychain storage;
+- `/auth/apple`, `/auth/google` and their authenticated `/link` counterparts verify federated
+  identities server-side;
+- `/auth/passkeys/*` implements registration, authentication, listing and revocation;
+- `DELETE /auth/account` removes memberships and sole-owner workspaces, erases personal fields,
+  revokes active sessions and preserves only pseudonymized records required for audit or billing;
+- `/auth/switch-workspace` switches the active workspace without re-entering credentials;
+- `/billing/products`, `/billing/entitlements` and `/billing/apple/transactions` expose products and
+  reconcile verified StoreKit purchases;
+- `/billing/apple/notifications` receives idempotent App Store Server Notifications V2.
+
+Set `PASSKEY_RP_ID`, `PASSKEY_ORIGINS`, `APPLE_BUNDLE_ID`, `APPLE_APP_ID`,
+`APPLE_ROOT_CA_B64` and `GOOGLE_CLIENT_IDS` in production. The relying-party ID and associated
+domains currently use `monitc.talhacan.com`; the site serves
+`/.well-known/apple-app-site-association` for passkeys and universal links. App Store and Google
+client identifiers must be created in their respective consoles and injected as secrets—never
+committed.
 
 ## Desktop
 
