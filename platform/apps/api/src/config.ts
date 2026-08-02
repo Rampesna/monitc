@@ -44,6 +44,7 @@ const configSchema = z.object({
   APPLE_APP_ID: z.string().default(''),
   APPLE_ROOT_CA_B64: z.string().default(''),
   GOOGLE_CLIENT_IDS: z.string().default(''),
+  APP_REVIEW_WORKSPACE_ID: z.union([z.literal(''), z.uuid()]).default(''),
   BOOTSTRAP_ADMIN_EMAIL: z.email().optional(),
   BOOTSTRAP_ADMIN_PASSWORD: z.string().min(16).optional(),
   WORKER_POLL_SECONDS: z.coerce.number().int().min(10).max(300).default(30),
