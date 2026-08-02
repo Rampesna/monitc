@@ -47,7 +47,7 @@ data:
   MONITC_AGENT_TRUST_DOMAIN: monitc.talhacan.com
   MONITC_AGENT_CERT_TTL: 168h
   MONITC_AGENT_SAMPLE_INTERVAL: 1s
-  # Acts as the delivery floor. The gateway takes max(plan sample interval, this value),
-  # so Community remains at 5s while Scale can deliver every 250ms.
-  MONITC_AGENT_BATCH_INTERVAL: 250ms
+  # Collect at the plan's native interval, but send several samples per transaction.
+  # This keeps sub-second telemetry while preventing per-sample disk and DB overhead.
+  MONITC_AGENT_BATCH_INTERVAL: 2s
   MONITC_AGENT_HEARTBEAT_INTERVAL: 15s

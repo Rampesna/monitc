@@ -123,14 +123,30 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         network_tx_rate: number
         sampled_at: Date
       }>(
-        `SELECT DISTINCT ON (server_id, namespace, pod_name)
-          server_id, namespace, pod_name, node_name, phase, ready, restarts,
-          cpu_usage_millicores, cpu_request_millicores, cpu_limit_millicores,
-          memory_usage_bytes, memory_request_bytes, memory_limit_bytes,
-          network_rx_rate, network_tx_rate, sampled_at
-         FROM kubernetes_pod_samples
-         WHERE workspace_id = $1
-         ORDER BY server_id, namespace, pod_name, sampled_at DESC`,
+        `WITH latest_inventory AS (
+           SELECT server.id AS server_id,
+             COALESCE(
+               (SELECT snapshot.sampled_at
+                FROM server_inventory_snapshots snapshot
+                WHERE snapshot.workspace_id = $1 AND snapshot.server_id = server.id
+                ORDER BY snapshot.sampled_at DESC LIMIT 1),
+               (SELECT max(sample.sampled_at)
+                FROM kubernetes_pod_samples sample
+                WHERE sample.workspace_id = $1 AND sample.server_id = server.id)
+             ) AS sampled_at
+           FROM server_connections server
+           WHERE server.workspace_id = $1
+         )
+         SELECT DISTINCT ON (sample.server_id, sample.namespace, sample.pod_name)
+           sample.server_id, sample.namespace, sample.pod_name, sample.node_name, sample.phase,
+           sample.ready, sample.restarts, sample.cpu_usage_millicores, sample.cpu_request_millicores,
+           sample.cpu_limit_millicores, sample.memory_usage_bytes, sample.memory_request_bytes,
+           sample.memory_limit_bytes, sample.network_rx_rate, sample.network_tx_rate, sample.sampled_at
+         FROM kubernetes_pod_samples sample
+         JOIN latest_inventory latest
+           ON latest.server_id = sample.server_id AND latest.sampled_at = sample.sampled_at
+         WHERE sample.workspace_id = $1
+         ORDER BY sample.server_id, sample.namespace, sample.pod_name, sample.sampled_at DESC`,
         [request.auth.workspaceId]
       ),
       db.query<{
@@ -147,12 +163,29 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         network_tx_rate: number
         sampled_at: Date
       }>(
-        `SELECT DISTINCT ON (server_id, container_id)
-          server_id, container_id, container_name, image, state, status, cpu_percent,
-          memory_usage_bytes, memory_limit_bytes, network_rx_rate, network_tx_rate, sampled_at
-         FROM docker_container_samples
-         WHERE workspace_id = $1
-         ORDER BY server_id, container_id, sampled_at DESC`,
+        `WITH latest_inventory AS (
+           SELECT server.id AS server_id,
+             COALESCE(
+               (SELECT snapshot.sampled_at
+                FROM server_inventory_snapshots snapshot
+                WHERE snapshot.workspace_id = $1 AND snapshot.server_id = server.id
+                ORDER BY snapshot.sampled_at DESC LIMIT 1),
+               (SELECT max(sample.sampled_at)
+                FROM docker_container_samples sample
+                WHERE sample.workspace_id = $1 AND sample.server_id = server.id)
+             ) AS sampled_at
+           FROM server_connections server
+           WHERE server.workspace_id = $1
+         )
+         SELECT DISTINCT ON (sample.server_id, sample.container_id)
+           sample.server_id, sample.container_id, sample.container_name, sample.image, sample.state,
+           sample.status, sample.cpu_percent, sample.memory_usage_bytes, sample.memory_limit_bytes,
+           sample.network_rx_rate, sample.network_tx_rate, sample.sampled_at
+         FROM docker_container_samples sample
+         JOIN latest_inventory latest
+           ON latest.server_id = sample.server_id AND latest.sampled_at = sample.sampled_at
+         WHERE sample.workspace_id = $1
+         ORDER BY sample.server_id, sample.container_id, sample.sampled_at DESC`,
         [request.auth.workspaceId]
       )
     ])
@@ -369,14 +402,26 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
       network_tx_rate: number
       sampled_at: Date
     }>(
-      `SELECT DISTINCT ON (namespace, pod_name)
-        namespace, pod_name, node_name, phase, ready, restarts,
-        cpu_usage_millicores, cpu_request_millicores, cpu_limit_millicores,
-        memory_usage_bytes, memory_request_bytes, memory_limit_bytes,
-        network_rx_rate, network_tx_rate, sampled_at
-       FROM kubernetes_pod_samples
-       WHERE workspace_id = $1 AND server_id = $2
-       ORDER BY namespace, pod_name, sampled_at DESC`,
+      `WITH latest_inventory AS (
+         SELECT COALESCE(
+           (SELECT snapshot.sampled_at
+            FROM server_inventory_snapshots snapshot
+            WHERE snapshot.workspace_id = $1 AND snapshot.server_id = $2
+            ORDER BY snapshot.sampled_at DESC LIMIT 1),
+           (SELECT max(sample.sampled_at)
+            FROM kubernetes_pod_samples sample
+            WHERE sample.workspace_id = $1 AND sample.server_id = $2)
+         ) AS sampled_at
+       )
+       SELECT DISTINCT ON (sample.namespace, sample.pod_name)
+         sample.namespace, sample.pod_name, sample.node_name, sample.phase, sample.ready, sample.restarts,
+         sample.cpu_usage_millicores, sample.cpu_request_millicores, sample.cpu_limit_millicores,
+         sample.memory_usage_bytes, sample.memory_request_bytes, sample.memory_limit_bytes,
+         sample.network_rx_rate, sample.network_tx_rate, sample.sampled_at
+       FROM kubernetes_pod_samples sample
+       JOIN latest_inventory latest ON latest.sampled_at = sample.sampled_at
+       WHERE sample.workspace_id = $1 AND sample.server_id = $2
+       ORDER BY sample.namespace, sample.pod_name, sample.sampled_at DESC`,
       [request.auth.workspaceId, id.data]
     )
     return {
@@ -425,12 +470,25 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
       network_tx_rate: number
       sampled_at: Date
     }>(
-      `SELECT DISTINCT ON (container_id)
-        container_id, container_name, image, state, status, cpu_percent,
-        memory_usage_bytes, memory_limit_bytes, network_rx_rate, network_tx_rate, sampled_at
-       FROM docker_container_samples
-       WHERE workspace_id = $1 AND server_id = $2
-       ORDER BY container_id, sampled_at DESC`,
+      `WITH latest_inventory AS (
+         SELECT COALESCE(
+           (SELECT snapshot.sampled_at
+            FROM server_inventory_snapshots snapshot
+            WHERE snapshot.workspace_id = $1 AND snapshot.server_id = $2
+            ORDER BY snapshot.sampled_at DESC LIMIT 1),
+           (SELECT max(sample.sampled_at)
+            FROM docker_container_samples sample
+            WHERE sample.workspace_id = $1 AND sample.server_id = $2)
+         ) AS sampled_at
+       )
+       SELECT DISTINCT ON (sample.container_id)
+         sample.container_id, sample.container_name, sample.image, sample.state, sample.status,
+         sample.cpu_percent, sample.memory_usage_bytes, sample.memory_limit_bytes,
+         sample.network_rx_rate, sample.network_tx_rate, sample.sampled_at
+       FROM docker_container_samples sample
+       JOIN latest_inventory latest ON latest.sampled_at = sample.sampled_at
+       WHERE sample.workspace_id = $1 AND sample.server_id = $2
+       ORDER BY sample.container_id, sample.sampled_at DESC`,
       [request.auth.workspaceId, id.data]
     )
     return {

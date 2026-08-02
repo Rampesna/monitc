@@ -506,6 +506,26 @@ const migrations: Migration[] = [
       CREATE INDEX IF NOT EXISTS mobile_licenses_workspace_idx
         ON mobile_licenses (workspace_id, status);
     `
+  },
+  {
+    id: 5,
+    name: 'authoritative-workload-inventory-snapshots',
+    sql: `
+      CREATE TABLE IF NOT EXISTS server_inventory_snapshots (
+        id BIGSERIAL PRIMARY KEY,
+        workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+        server_id UUID NOT NULL REFERENCES server_connections(id) ON DELETE CASCADE,
+        sampled_at TIMESTAMPTZ NOT NULL,
+        pod_count INTEGER NOT NULL DEFAULT 0 CHECK (pod_count >= 0),
+        container_count INTEGER NOT NULL DEFAULT 0 CHECK (container_count >= 0),
+        agent_sequence BIGINT NOT NULL,
+        boot_id TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (server_id, boot_id, agent_sequence)
+      );
+      CREATE INDEX IF NOT EXISTS inventory_snapshots_lookup_idx
+        ON server_inventory_snapshots (workspace_id, server_id, sampled_at DESC);
+    `
   }
 ]
 

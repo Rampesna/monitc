@@ -42,7 +42,7 @@ func LoadConfig() (Config, error) {
 		TrustDomain:          envOr("MONITC_AGENT_TRUST_DOMAIN", "monitc.talhacan.com"),
 		ClientCertificateTTL: durationOr("MONITC_AGENT_CERT_TTL", 7*24*time.Hour),
 		SampleInterval:       durationOr("MONITC_AGENT_SAMPLE_INTERVAL", time.Second),
-		BatchInterval:        durationOr("MONITC_AGENT_BATCH_INTERVAL", 250*time.Millisecond),
+		BatchInterval:        durationOr("MONITC_AGENT_BATCH_INTERVAL", 2*time.Second),
 		HeartbeatInterval:    durationOr("MONITC_AGENT_HEARTBEAT_INTERVAL", 15*time.Second),
 		MaxReceiveBytes:      integerOr("MONITC_AGENT_MAX_RECEIVE_BYTES", 16<<20),
 		MaxSendBytes:         integerOr("MONITC_AGENT_MAX_SEND_BYTES", 4<<20),

@@ -278,6 +278,11 @@ func (r *Runtime) connect(ctx context.Context) error {
 	}
 	r.settings.update(welcome.GetConfiguration())
 	r.logger.Info("agent stream connected", "connection_id", welcome.GetConnectionId(), "server_id", welcome.GetServerId())
+	if identity.AcknowledgedBootID != "" {
+		if err := r.spool.Acknowledge(identity.AcknowledgedBootID, identity.AcknowledgedSequence); err != nil {
+			return fmt.Errorf("prune acknowledged metric spool: %w", err)
+		}
+	}
 
 	responses := make(chan *agentv1.ConnectResponse, 8)
 	receiveErrors := make(chan error, 1)
@@ -306,19 +311,15 @@ func (r *Runtime) connect(ctx context.Context) error {
 
 	for {
 		if awaiting == nil {
-			items, listErr := r.spool.Items()
-			if listErr != nil {
-				return listErr
-			}
-			if len(items) > 0 {
-				batch, readErr := r.spool.Read(items[0])
+			if oldest, available := r.spool.Oldest(); available {
+				batch, readErr := r.spool.Read(oldest)
 				if readErr != nil {
 					return readErr
 				}
 				if sendErr := stream.Send(&agentv1.ConnectRequest{Payload: &agentv1.ConnectRequest_MetricBatch{MetricBatch: batch}}); sendErr != nil {
 					return sendErr
 				}
-				awaiting = &items[0]
+				awaiting = &oldest
 			}
 		}
 
@@ -342,14 +343,19 @@ func (r *Runtime) connect(ctx context.Context) error {
 		case response := <-responses:
 			switch payload := response.GetPayload().(type) {
 			case *agentv1.ConnectResponse_Acknowledgement:
-				if err := r.spool.Acknowledge(payload.Acknowledgement.GetBootId(), payload.Acknowledgement.GetThroughSequence()); err != nil {
+				acknowledgedCurrent := awaiting != nil && awaiting.BootID == payload.Acknowledgement.GetBootId() &&
+					awaiting.LastSequence <= payload.Acknowledgement.GetThroughSequence()
+				if acknowledgedCurrent {
+					if err := r.spool.AcknowledgeItem(*awaiting); err != nil {
+						return err
+					}
+				} else if err := r.spool.Acknowledge(payload.Acknowledgement.GetBootId(), payload.Acknowledgement.GetThroughSequence()); err != nil {
 					return err
 				}
 				if err := r.identity.Acknowledge(payload.Acknowledgement.GetBootId(), payload.Acknowledgement.GetThroughSequence()); err != nil {
 					return err
 				}
-				if awaiting != nil && awaiting.BootID == payload.Acknowledgement.GetBootId() &&
-					awaiting.LastSequence <= payload.Acknowledgement.GetThroughSequence() {
+				if acknowledgedCurrent {
 					awaiting = nil
 				}
 			case *agentv1.ConnectResponse_Configuration:

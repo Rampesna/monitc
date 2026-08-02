@@ -375,7 +375,7 @@ func (s *Store) SaveMetricBatch(ctx context.Context, record AgentRecord, batch *
 	}
 	defer transaction.Rollback(ctx)
 
-	previous, err := loadPreviousNetwork(ctx, transaction, record.ServerID)
+	previous, err := loadPreviousNetwork(ctx, transaction, record.WorkspaceID, record.ServerID)
 	if err != nil {
 		return 0, err
 	}
@@ -400,6 +400,21 @@ func (s *Store) SaveMetricBatch(ctx context.Context, record AgentRecord, batch *
 	}
 	if inventoryTime.IsZero() {
 		inventoryTime = time.Now().UTC()
+	}
+	if batch.GetInventorySampledAtUnixNanos() != 0 {
+		_, err = transaction.Exec(ctx, `
+			INSERT INTO server_inventory_snapshots
+			  (workspace_id, server_id, sampled_at, pod_count, container_count, agent_sequence, boot_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT (server_id, boot_id, agent_sequence) DO UPDATE SET
+			  sampled_at = EXCLUDED.sampled_at,
+			  pod_count = EXCLUDED.pod_count,
+			  container_count = EXCLUDED.container_count
+		`, record.WorkspaceID, record.ServerID, inventoryTime, len(batch.GetPods()), len(batch.GetContainers()),
+			clampUint64(throughSequence), batch.GetBootId())
+		if err != nil {
+			return 0, fmt.Errorf("insert inventory snapshot: %w", err)
+		}
 	}
 	if err := insertPodSamples(ctx, transaction, record, batch.GetBootId(), throughSequence, inventoryTime, batch.GetPods()); err != nil {
 		return 0, err
@@ -439,15 +454,15 @@ type networkSnapshot struct {
 	TransmitTotal uint64
 }
 
-func loadPreviousNetwork(ctx context.Context, transaction pgx.Tx, serverID string) (networkSnapshot, error) {
+func loadPreviousNetwork(ctx context.Context, transaction pgx.Tx, workspaceID, serverID string) (networkSnapshot, error) {
 	var sampledAt time.Time
 	var receiveTotal, transmitTotal int64
 	err := transaction.QueryRow(ctx, `
 		SELECT sampled_at, network_rx_total, network_tx_total
 		FROM system_metric_samples
-		WHERE server_id = $1
+		WHERE workspace_id = $1 AND server_id = $2
 		ORDER BY sampled_at DESC LIMIT 1
-	`, serverID).Scan(&sampledAt, &receiveTotal, &transmitTotal)
+	`, workspaceID, serverID).Scan(&sampledAt, &receiveTotal, &transmitTotal)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return networkSnapshot{}, nil
 	}
@@ -546,9 +561,9 @@ func insertPodSamples(ctx context.Context, transaction pgx.Tx, record AgentRecor
 		err := transaction.QueryRow(ctx, `
 			SELECT sampled_at, network_rx_total, network_tx_total
 			FROM kubernetes_pod_samples
-			WHERE server_id = $1 AND namespace = $2 AND pod_name = $3
-			ORDER BY sampled_at DESC LIMIT 1
-		`, record.ServerID, pod.GetNamespace(), pod.GetName()).Scan(&previousAt, &previousRX, &previousTX)
+				WHERE workspace_id = $1 AND server_id = $2 AND namespace = $3 AND pod_name = $4
+				ORDER BY sampled_at DESC LIMIT 1
+			`, record.WorkspaceID, record.ServerID, pod.GetNamespace(), pod.GetName()).Scan(&previousAt, &previousRX, &previousTX)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
@@ -584,9 +599,9 @@ func insertContainerSamples(ctx context.Context, transaction pgx.Tx, record Agen
 		err := transaction.QueryRow(ctx, `
 			SELECT sampled_at, network_rx_total, network_tx_total
 			FROM docker_container_samples
-			WHERE server_id = $1 AND container_id = $2
-			ORDER BY sampled_at DESC LIMIT 1
-		`, record.ServerID, container.GetId()).Scan(&previousAt, &previousRX, &previousTX)
+				WHERE workspace_id = $1 AND server_id = $2 AND container_id = $3
+				ORDER BY sampled_at DESC LIMIT 1
+			`, record.WorkspaceID, record.ServerID, container.GetId()).Scan(&previousAt, &previousRX, &previousTX)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}

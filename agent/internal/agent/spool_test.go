@@ -83,6 +83,35 @@ func TestSpoolQuarantinesRejectedBatchOutsideSendQueue(t *testing.T) {
 	}
 }
 
+func TestSpoolAcknowledgesTheInFlightItemWithoutRescanning(t *testing.T) {
+	t.Parallel()
+	spool, err := NewSpool(t.TempDir(), 1<<20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootID := "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+	for sequence := uint64(1); sequence <= 3; sequence++ {
+		if err := spool.Put(testBatch(bootID, sequence)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	oldest, available := spool.Oldest()
+	if !available || oldest.FirstSequence != 1 {
+		t.Fatalf("expected sequence 1 at the head of the spool, got %#v", oldest)
+	}
+	if err := spool.AcknowledgeItem(oldest); err != nil {
+		t.Fatal(err)
+	}
+	next, available := spool.Oldest()
+	if !available || next.FirstSequence != 2 {
+		t.Fatalf("expected sequence 2 after exact acknowledgement, got %#v", next)
+	}
+	_, batches, err := spool.Stats()
+	if err != nil || batches != 2 {
+		t.Fatalf("expected two queued batches, got %d (error: %v)", batches, err)
+	}
+}
+
 func testBatch(bootID string, sequence uint64) *agentv1.MetricBatch {
 	return &agentv1.MetricBatch{
 		AgentId: "agent-test",
