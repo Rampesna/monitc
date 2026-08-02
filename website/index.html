@@ -20,7 +20,26 @@
     <title>Monitc — Server monitoring and infrastructure operations</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <main
+        aria-label="Monitc product overview"
+        style="min-height:100vh;display:grid;place-items:center;padding:32px;background:#09090f;color:#f6f5fb;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;text-align:center"
+      >
+        <section style="max-width:760px">
+          <p style="margin:0 0 16px;color:#8f7cff;font-weight:700;letter-spacing:.14em;text-transform:uppercase">Server monitoring and infrastructure operations</p>
+          <h1 style="margin:0 0 20px;font-size:clamp(42px,8vw,76px);line-height:1">Monitc</h1>
+          <p style="margin:0 auto 24px;color:#aaa7b6;font-size:20px;line-height:1.65">
+            Monitc is a server monitoring and infrastructure operations application. It helps operators monitor server health, Docker containers and Kubernetes workloads, review alerts and logs, open secure terminals, and manage remote files from desktop, web and iOS clients.
+          </p>
+          <nav aria-label="Monitc resources" style="display:flex;flex-wrap:wrap;justify-content:center;gap:18px">
+            <a href="/app/" style="color:#9d8cff">Open Monitc</a>
+            <a href="/privacy" style="color:#9d8cff">Privacy Policy</a>
+            <a href="/terms" style="color:#9d8cff">Terms of Use</a>
+            <a href="/support" style="color:#9d8cff">Support</a>
+          </nav>
+        </section>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
