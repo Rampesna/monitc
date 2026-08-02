@@ -11,8 +11,8 @@ if ! find "$source_dir" -mindepth 1 -type f -print -quit | grep -q .; then
   exit 0
 fi
 
-"$kubectl_bin" -n "$namespace" wait --for=condition=Ready pod \
-  -l app.kubernetes.io/name=api \
+"$kubectl_bin" -n "$namespace" wait --for=condition=Available \
+  deployment/api \
   --timeout=180s >/dev/null
 
 sync_pod="monitc-release-sync"

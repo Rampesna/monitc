@@ -19,9 +19,15 @@ curl --fail --silent --show-error --max-time 10 http://127.0.0.1:9129/health >/d
 curl --fail --silent --show-error --max-time 10 http://127.0.0.1:9128/api/v1/agent/bootstrap-ca >/dev/null
 timeout 10 bash -c '</dev/tcp/127.0.0.1/9130'
 
-for application in api worker web admin agent-gateway postgres redis; do
-  "$kubectl_bin" -n "$namespace" wait --for=condition=Ready pod \
-    -l "app.kubernetes.io/name=$application" \
+for deployment in api worker web admin agent-gateway; do
+  "$kubectl_bin" -n "$namespace" wait --for=condition=Available \
+    "deployment/$deployment" \
+    --timeout=180s >/dev/null
+done
+
+for statefulset in postgres redis; do
+  "$kubectl_bin" -n "$namespace" rollout status \
+    "statefulset/$statefulset" \
     --timeout=180s >/dev/null
 done
 
