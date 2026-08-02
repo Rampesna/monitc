@@ -138,9 +138,9 @@ const platformLabel = () => {
 
 function Logo() {
   return (
-    <a href="/" className="brand" aria-label="monitc home">
+    <a href="/" className="brand" aria-label="Monitc home">
       <span className="brand-mark"><span /></span>
-      <span>monitc</span>
+      <span>Monitc</span>
     </a>
   )
 }
@@ -259,7 +259,7 @@ function Hero({ release }) {
           <p className="eyebrow">SERVER OPERATIONS, BEAUTIFULLY FOCUSED</p>
           <h1>Your infrastructure.<br /><span>One calm view.</span></h1>
           <p className="hero-lead">
-            Monitor servers, operate containers, manage Kubernetes, open terminals and move remote files—from the desktop, your own server or the monitc cloud.
+            Monitc is a server monitoring and infrastructure operations app. Monitor servers, operate containers, manage Kubernetes, open terminals and move remote files—from the desktop, your own server or Monitc Cloud.
           </p>
           <div className="hero-actions">
             <a className="button button-primary" href={WEB_APP}>
@@ -322,7 +322,7 @@ function Features() {
       <div className="shell">
         <div className="section-heading split-heading">
           <div><p className="eyebrow">ONE APP. ZERO CONTEXT SWITCHING.</p><h2>From signal to action,<br />without changing tools.</h2></div>
-          <p>monitc keeps the essentials close and the noise out of your way, so you can see what changed and act before it becomes an incident.</p>
+          <p>Monitc keeps the essentials close and the noise out of your way, so you can see what changed and act before it becomes an incident.</p>
         </div>
         <div className="feature-grid">{features.map((feature) => <FeatureCard feature={feature} key={feature.title} />)}</div>
       </div>
@@ -390,14 +390,14 @@ function Updates({ release }) {
         <div className="update-copy">
           <p className="eyebrow">EFFORTLESS UPDATES</p>
           <h2>New release. One click. Done.</h2>
-          <p>monitc checks for signed updates in the background. Review what changed, click update, and return to work on the newest version.</p>
+          <p>Monitc checks for signed updates in the background. Review what changed, click update, and return to work on the newest version.</p>
           <div className="update-steps">
             <span><b>01</b> A new version appears</span><i /><span><b>02</b> Click update & restart</span><i /><span><b>03</b> Continue where you left off</span>
           </div>
         </div>
         <div className="update-release-card">
           <span className="status"><i /> Latest stable</span>
-          <strong>monitc {release.version}</strong>
+          <strong>Monitc {release.version}</strong>
           <small>{release.publishedAt ? new Date(release.publishedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Ready for the next release'}</small>
           <a href={release.downloadUrl || GITHUB_RELEASES}>Get the latest version <ArrowRight size={14} /></a>
         </div>
@@ -425,7 +425,7 @@ function FinalCta({ release }) {
 
 function Footer() {
   return (
-    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href={GITHUB_REPO}>GitHub</a><a href={WEB_APP}>Web app</a><span>© {new Date().getFullYear()} monitc</span></div></div></footer>
+    <footer><div className="shell footer-inner"><Logo /><p>Built for people who keep systems running.</p><div><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/support">Support</a><a href={GITHUB_REPO}>GitHub</a><a href={WEB_APP}>Web app</a><span>© {new Date().getFullYear()} Monitc</span></div></div></footer>
   )
 }
 
