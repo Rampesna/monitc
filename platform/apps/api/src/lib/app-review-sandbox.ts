@@ -4,6 +4,16 @@ interface ReviewSandboxIdentity {
   hasSshSecret: boolean
 }
 
+export interface ReviewMetricPoint {
+  timestamp: string
+  cpuPercent: number
+  memoryPercent: number
+  diskPercent: number
+  networkRxBytesPerSecond: number
+  networkTxBytesPerSecond: number
+  source: 'agent'
+}
+
 export function isAppReviewSandbox(identity: ReviewSandboxIdentity): boolean {
   return Boolean(
     identity.configuredWorkspaceId
@@ -14,6 +24,24 @@ export function isAppReviewSandbox(identity: ReviewSandboxIdentity): boolean {
 
 function timestamp(offsetSeconds = 0): string {
   return new Date(Date.now() - offsetSeconds * 1_000).toISOString()
+}
+
+export function reviewMetricPoints(samples = 60, now = Date.now()): ReviewMetricPoint[] {
+  const count = Math.max(1, Math.min(samples, 180))
+  return Array.from({ length: count }, (_, index) => {
+    const age = count - index - 1
+    const wave = Math.sin(index / 4)
+    const trafficWave = Math.cos(index / 5)
+    return {
+      timestamp: new Date(now - age * 60_000).toISOString(),
+      cpuPercent: Number((34 + wave * 9 + (index % 7) * 0.7).toFixed(1)),
+      memoryPercent: Number((57 + Math.sin(index / 7) * 4).toFixed(1)),
+      diskPercent: Number((42.3 + index * 0.005).toFixed(1)),
+      networkRxBytesPerSecond: Math.round(4_800_000 + trafficWave * 1_300_000),
+      networkTxBytesPerSecond: Math.round(1_650_000 + Math.sin(index / 6) * 620_000),
+      source: 'agent'
+    }
+  })
 }
 
 export function reviewContainerLogs(containerId: string): string {

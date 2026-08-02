@@ -61,7 +61,7 @@ interface ServerRow {
   agent_spool_batches?: number | null
 }
 
-async function publicServer(row: ServerRow) {
+async function publicServer(row: ServerRow, reviewSandbox = false) {
   let metadata: { host?: string; port?: number; username?: string } = {}
   try {
     if (row.secret_ciphertext && row.secret_key_id) {
@@ -75,7 +75,7 @@ async function publicServer(row: ServerRow) {
     id: row.id,
     name: decryptField(row.name_ciphertext, 'server.name'),
     connectionMode: row.connection_mode,
-    status: row.status,
+    status: reviewSandbox ? 'connected' : row.status,
     ...metadata,
     sshFallbackConfigured: Boolean(row.secret_ciphertext && row.secret_key_id),
     agent: row.agent_id && row.agent_status && row.agent_certificate_expires_at ? {
@@ -94,7 +94,7 @@ async function publicServer(row: ServerRow) {
       spoolBytes: Number(row.agent_spool_bytes || 0),
       spoolBatches: Number(row.agent_spool_batches || 0)
     } : undefined,
-    lastSeenAt: row.last_seen_at?.toISOString() || null,
+    lastSeenAt: reviewSandbox ? new Date().toISOString() : row.last_seen_at?.toISOString() || null,
     createdAt: row.created_at.toISOString()
   }
 }
@@ -127,7 +127,17 @@ export async function serverRoutes(app: FastifyInstance): Promise<void> {
        WHERE server.workspace_id = $1 ORDER BY server.created_at DESC`,
       [request.auth.workspaceId]
     )
-    return { servers: await Promise.all(result.rows.map(publicServer)) }
+    return {
+      servers: await Promise.all(result.rows.map((row) => publicServer(
+        row,
+        Boolean(
+          config.APP_REVIEW_WORKSPACE_ID
+            && request.auth?.workspaceId === config.APP_REVIEW_WORKSPACE_ID
+            && !row.secret_ciphertext
+            && !row.secret_key_id
+        )
+      )))
+    }
   })
 
   app.post('/', { preHandler: requireScope('servers:write') }, async (request, reply) => {

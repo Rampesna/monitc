@@ -1,17 +1,55 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { requireScope } from '../auth/guard.js'
+import { config } from '../config.js'
 import { db } from '../db/pool.js'
+import { isAppReviewSandbox, reviewMetricPoints } from '../lib/app-review-sandbox.js'
 import { decryptField } from '../lib/pii.js'
 import { percent } from '../services/resource-units.js'
 
 const idSchema = z.uuid()
+
+interface ReviewServerRow {
+  id: string
+  workspace_id: string
+  secret_ciphertext: string | null
+  secret_key_id: string | null
+}
+
+async function reviewSandboxServerId(workspaceId: string, serverId?: string): Promise<string | null> {
+  if (!config.APP_REVIEW_WORKSPACE_ID || workspaceId !== config.APP_REVIEW_WORKSPACE_ID) return null
+  const result = serverId
+    ? await db.query<ReviewServerRow>(
+      `SELECT id, workspace_id, secret_ciphertext, secret_key_id
+       FROM server_connections WHERE workspace_id = $1 AND id = $2 LIMIT 1`,
+      [workspaceId, serverId]
+    )
+    : await db.query<ReviewServerRow>(
+      `SELECT id, workspace_id, secret_ciphertext, secret_key_id
+       FROM server_connections WHERE workspace_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [workspaceId]
+    )
+  const server = result.rows[0]
+  if (!server) return null
+  return isAppReviewSandbox({
+    workspaceId: server.workspace_id,
+    configuredWorkspaceId: config.APP_REVIEW_WORKSPACE_ID,
+    hasSshSecret: Boolean(server.secret_ciphertext && server.secret_key_id)
+  }) ? server.id : null
+}
 
 export async function metricRoutes(app: FastifyInstance): Promise<void> {
   app.get('/overview', { preHandler: requireScope('metrics:read') }, async (request, reply) => {
     if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
     const query = z.object({ hours: z.coerce.number().min(1).max(24).default(1) }).safeParse(request.query)
     if (!query.success) return reply.code(400).send({ error: 'validation_error' })
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId)
+    if (reviewServerId) {
+      return {
+        serverId: reviewServerId,
+        points: reviewMetricPoints(Math.min(query.data.hours * 60, 180))
+      }
+    }
     const result = await db.query<{
       server_id: string
       sampled_at: Date
@@ -61,6 +99,7 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/fleet', { preHandler: requireScope('metrics:read') }, async (request, reply) => {
     if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId)
     const [servers, podResult, containerResult] = await Promise.all([
       db.query<{ id: string; name_ciphertext: string }>(
         'SELECT id, name_ciphertext FROM server_connections WHERE workspace_id = $1',
@@ -141,7 +180,7 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         memoryUsagePercent: percent(row.memory_usage_bytes, row.memory_limit_bytes || row.memory_request_bytes),
         networkRxBytesPerSecond: row.network_rx_rate,
         networkTxBytesPerSecond: row.network_tx_rate,
-        sampledAt: row.sampled_at.toISOString()
+        sampledAt: row.server_id === reviewServerId ? new Date().toISOString() : row.sampled_at.toISOString()
       })),
       containers: containerResult.rows.map((row) => ({
         serverId: row.server_id,
@@ -157,7 +196,7 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         memoryUsagePercent: percent(row.memory_usage_bytes, row.memory_limit_bytes),
         networkRxBytesPerSecond: row.network_rx_rate,
         networkTxBytesPerSecond: row.network_tx_rate,
-        sampledAt: row.sampled_at.toISOString()
+        sampledAt: row.server_id === reviewServerId ? new Date().toISOString() : row.sampled_at.toISOString()
       }))
     }
   })
@@ -167,6 +206,13 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
     const id = idSchema.safeParse((request.params as { id?: string }).id)
     const query = z.object({ hours: z.coerce.number().min(1).max(168).default(1) }).safeParse(request.query)
     if (!id.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId, id.data)
+    if (reviewServerId) {
+      return {
+        points: reviewMetricPoints(Math.min(query.data.hours * 60, 180)),
+        resolution: 'review'
+      }
+    }
     const server = await db.query<{ connection_mode: 'ssh' | 'agent' }>(
       'SELECT connection_mode FROM server_connections WHERE id = $1 AND workspace_id = $2',
       [id.data, request.auth.workspaceId]
@@ -229,6 +275,22 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
     if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
     const id = idSchema.safeParse((request.params as { id?: string }).id)
     if (!id.success) return reply.code(400).send({ error: 'validation_error' })
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId, id.data)
+    if (reviewServerId) {
+      const latest = reviewMetricPoints(1)[0]!
+      return {
+        ...latest,
+        sampleIntervalNanos: 1_000_000,
+        collectionDurationNanos: 420_000,
+        monotonicNanos: String(Date.now() * 1_000_000),
+        ebpfActive: true,
+        schedulerSwitches: 12_480,
+        tcpRetransmits: 2,
+        loadAverage1: 0.82,
+        loadAverage5: 0.74,
+        loadAverage15: 0.68
+      }
+    }
     const result = await db.query<{
       sampled_at: Date
       cpu_percent: number
@@ -284,11 +346,12 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
     if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
     const id = idSchema.safeParse((request.params as { id?: string }).id)
     if (!id.success) return reply.code(400).send({ error: 'validation_error' })
-    const server = await db.query(
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId, id.data)
+    const server = reviewServerId ? null : await db.query(
       'SELECT 1 FROM server_connections WHERE id = $1 AND workspace_id = $2',
       [id.data, request.auth.workspaceId]
     )
-    if (!server.rowCount) return reply.code(404).send({ error: 'server_not_found' })
+    if (!reviewServerId && !server?.rowCount) return reply.code(404).send({ error: 'server_not_found' })
     const result = await db.query<{
       namespace: string
       pod_name: string
@@ -334,7 +397,7 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         memoryUsagePercent: percent(row.memory_usage_bytes, row.memory_limit_bytes || row.memory_request_bytes),
         networkRxBytesPerSecond: row.network_rx_rate,
         networkTxBytesPerSecond: row.network_tx_rate,
-        sampledAt: row.sampled_at.toISOString()
+        sampledAt: reviewServerId ? new Date().toISOString() : row.sampled_at.toISOString()
       }))
     }
   })
@@ -343,11 +406,12 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
     if (!request.auth) return reply.code(401).send({ error: 'unauthorized' })
     const id = idSchema.safeParse((request.params as { id?: string }).id)
     if (!id.success) return reply.code(400).send({ error: 'validation_error' })
-    const server = await db.query(
+    const reviewServerId = await reviewSandboxServerId(request.auth.workspaceId, id.data)
+    const server = reviewServerId ? null : await db.query(
       'SELECT 1 FROM server_connections WHERE id = $1 AND workspace_id = $2',
       [id.data, request.auth.workspaceId]
     )
-    if (!server.rowCount) return reply.code(404).send({ error: 'server_not_found' })
+    if (!reviewServerId && !server?.rowCount) return reply.code(404).send({ error: 'server_not_found' })
     const result = await db.query<{
       container_id: string
       container_name: string
@@ -382,7 +446,7 @@ export async function metricRoutes(app: FastifyInstance): Promise<void> {
         memoryUsagePercent: percent(row.memory_usage_bytes, row.memory_limit_bytes),
         networkRxBytesPerSecond: row.network_rx_rate,
         networkTxBytesPerSecond: row.network_tx_rate,
-        sampledAt: row.sampled_at.toISOString()
+        sampledAt: reviewServerId ? new Date().toISOString() : row.sampled_at.toISOString()
       }))
     }
   })
