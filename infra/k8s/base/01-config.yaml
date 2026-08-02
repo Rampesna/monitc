@@ -32,6 +32,7 @@ data:
   PASSKEY_ORIGINS: https://monitc.talhacan.com
   APPLE_BUNDLE_ID: com.monitc.mobile
   APPLE_APP_ID: "6797095612"
+  GOOGLE_CLIENT_IDS: 456060310934-iukkcf8rm22a6pad2nvk27jp8mvg0jkc.apps.googleusercontent.com,456060310934-759e8ga0nr4u7ldut528fuuq9qvkq4mg.apps.googleusercontent.com
   # Isolated synthetic workspace used by App Store reviewers; workload actions never reach real infrastructure.
   APP_REVIEW_WORKSPACE_ID: "6c0d399d-293e-41ea-9a32-60b0a1e34196"
   # Public Apple Root CA G2/G3 certificates used to verify StoreKit JWS chains.
