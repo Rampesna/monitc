@@ -8,6 +8,14 @@ import { db } from '../db/pool.js'
 import { redis } from '../lib/redis.js'
 import { decryptVaultSecret } from '../lib/vault.js'
 import { normalizeWorkloadCommandError } from '../lib/workload-error.js'
+import {
+  isAppReviewSandbox,
+  reviewActionOutput,
+  reviewContainerInspection,
+  reviewContainerLogs,
+  reviewPodDescription,
+  reviewPodLogs
+} from '../lib/app-review-sandbox.js'
 import { audit } from '../services/audit.js'
 import { SshConnection } from '../services/ssh-collector.js'
 
@@ -28,6 +36,7 @@ const podActionSchema = z.object({ action: z.literal('restart') })
 
 interface ServerSecretRow {
   id: string
+  workspace_id: string
   secret_ciphertext: string | null
   secret_key_id: string | null
   entitlements: Record<string, unknown>
@@ -43,7 +52,7 @@ async function loadServer(
   workspaceId: string
 ): Promise<ServerSecretRow | null> {
   const result = await db.query<ServerSecretRow>(
-    `SELECT sc.id, sc.secret_ciphertext, sc.secret_key_id, p.entitlements
+    `SELECT sc.id, sc.workspace_id, sc.secret_ciphertext, sc.secret_key_id, p.entitlements
      FROM server_connections sc
      JOIN subscriptions s ON s.workspace_id = sc.workspace_id AND s.status IN ('active', 'trialing', 'grace_period')
      JOIN plans p ON p.code = s.plan_code
@@ -51,6 +60,14 @@ async function loadServer(
     [serverId, workspaceId]
   )
   return result.rows[0] || null
+}
+
+function isReviewSandbox(server: ServerSecretRow): boolean {
+  return isAppReviewSandbox({
+    workspaceId: server.workspace_id,
+    configuredWorkspaceId: config.APP_REVIEW_WORKSPACE_ID,
+    hasSshSecret: Boolean(server.secret_ciphertext && server.secret_key_id)
+  })
 }
 
 async function withSftp<T>(
@@ -289,6 +306,10 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     const query = workloadLogsQuerySchema.safeParse(request.query)
     if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
+    if (isReviewSandbox(server)) {
+      reply.header('cache-control', 'no-store')
+      return { output: reviewContainerLogs(params.data.containerId), fetchedAt: new Date().toISOString() }
+    }
     const output = await withWorkloadSsh(server, (connection) => connection.exec(
       `docker logs --timestamps --tail ${query.data.tail} ${shellQuote(params.data.containerId)} 2>&1 | head -c 2097152`,
       25_000
@@ -303,6 +324,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     if (!params.success) return reply.code(400).send({ error: 'validation_error' })
+    if (isReviewSandbox(server)) return { details: reviewContainerInspection(params.data.containerId) }
     const output = await withWorkloadSsh(server, (connection) => connection.exec(
       `docker inspect ${shellQuote(params.data.containerId)}`,
       20_000
@@ -317,17 +339,20 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ containerId: workloadNameSchema }).safeParse(request.params)
     const input = dockerActionSchema.safeParse(request.body)
     if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withWorkloadSsh(server, (connection) => connection.exec(
-      `docker ${input.data.action} ${shellQuote(params.data.containerId)}`,
-      30_000
-    ))
+    const simulated = isReviewSandbox(server)
+    const output = simulated
+      ? reviewActionOutput('container', params.data.containerId, input.data.action)
+      : await withWorkloadSsh(server, (connection) => connection.exec(
+        `docker ${input.data.action} ${shellQuote(params.data.containerId)}`,
+        30_000
+      ))
     await audit({
       workspaceId: request.auth!.workspaceId,
       actorUserId: request.auth!.userId,
       action: `workload.docker_${input.data.action}`,
       resourceType: 'docker_container',
       resourceId: params.data.containerId,
-      metadata: { serverId: server.id }
+      metadata: { serverId: server.id, simulated }
     })
     return { ok: true, output: output.trim() }
   })
@@ -339,6 +364,10 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
     const query = workloadLogsQuerySchema.safeParse(request.query)
     if (!params.success || !query.success) return reply.code(400).send({ error: 'validation_error' })
+    if (isReviewSandbox(server)) {
+      reply.header('cache-control', 'no-store')
+      return { output: reviewPodLogs(params.data.namespace, params.data.pod), fetchedAt: new Date().toISOString() }
+    }
     const container = query.data.container ? ` -c ${shellQuote(query.data.container)}` : ''
     const previous = query.data.previous ? ' --previous' : ''
     const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
@@ -354,6 +383,7 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     if (!server.entitlements.workloadLogs) return reply.code(402).send({ error: 'plan_upgrade_required', capability: 'workloadLogs' })
     const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
     if (!params.success) return reply.code(400).send({ error: 'validation_error' })
+    if (isReviewSandbox(server)) return { output: reviewPodDescription(params.data.namespace, params.data.pod) }
     const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
       `describe pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)}`
     ), 25_000))
@@ -367,16 +397,19 @@ export async function accessRoutes(app: FastifyInstance): Promise<void> {
     const params = z.object({ namespace: workloadNameSchema, pod: workloadNameSchema }).safeParse(request.params)
     const input = podActionSchema.safeParse(request.body)
     if (!params.success || !input.success) return reply.code(400).send({ error: 'validation_error' })
-    const output = await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
-      `delete pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)} --wait=false`
-    ), 30_000))
+    const simulated = isReviewSandbox(server)
+    const output = simulated
+      ? reviewActionOutput('pod', `${params.data.namespace}/${params.data.pod}`, input.data.action)
+      : await withWorkloadSsh(server, (connection) => connection.exec(kubectl(
+        `delete pod -n ${shellQuote(params.data.namespace)} ${shellQuote(params.data.pod)} --wait=false`
+      ), 30_000))
     await audit({
       workspaceId: request.auth!.workspaceId,
       actorUserId: request.auth!.userId,
       action: 'workload.kubernetes_restart',
       resourceType: 'kubernetes_pod',
       resourceId: `${params.data.namespace}/${params.data.pod}`,
-      metadata: { serverId: server.id }
+      metadata: { serverId: server.id, simulated }
     })
     return { ok: true, output: output.trim() }
   })
